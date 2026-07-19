@@ -1,0 +1,20 @@
+{
+  "framework": "vite",
+  "spa": true,
+  "devCommand": "npm run dev",
+  "devServerUrl": "http://localhost:5173",
+  "port": 5173,
+  "entry": "index.html",
+  "routes": [
+    "/dashboard",
+    "/streams",
+    "/create",
+    "/activity",
+    "/architecture"
+  ],
+  "sourceDir": "src",
+  "styles": [
+    "src/index.css",
+    "tailwind.config.js"
+  ]
+}

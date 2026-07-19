@@ -1,0 +1,28 @@
+{
+  "name": "streampay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StreamPay — a Soroban-based recurring payment / subscription stream service",
+  "license": "MIT",
+  "workspaces": [
+    "apps/web",
+    "apps/watcher"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/web",
+    "watcher": "npm run start --workspace apps/watcher",
+    "watcher:once": "npm run once --workspace apps/watcher",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \"apps/**/src/**/*.{ts,tsx,css,json}\"",
+    "test": "npm run test --workspace apps/web",
+    "contract:build": "cd contracts/subscription && soroban contract build",
+    "contract:test": "cd contracts/subscription && cargo test"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

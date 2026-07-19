@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:developers.stellar.org)",
+      "WebSearch",
+      "WebFetch(domain:crates.io)",
+      "Bash(npm run *)"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+[package]
+name = "streampay-subscription"
+version = "0.1.0"
+edition = "2021"
+description = "StreamPay — Soroban recurring-payment / subscription escrow contract"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = "27.0.0"
+
+[dev-dependencies]
+# testutils enables the in-process test env, SAC helpers, auth mocking, and
+# ledger time control used by src/test.rs. Run tests with `cargo test`.
+soroban-sdk = { version = "27.0.0", features = ["testutils"] }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+# `stellar contract build` compiles the release profile to wasm; keeping
+# overflow-checks on in release is deliberate for a value-handling contract.
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true
