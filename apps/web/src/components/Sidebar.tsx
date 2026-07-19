@@ -5,6 +5,7 @@ import {
   IconClose,
   IconDashboard,
   IconPlus,
+  IconSend,
   IconStreams,
 } from './icons';
 import { IS_MOCK } from '@/lib/contract';
@@ -18,6 +19,7 @@ interface SidebarProps {
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', Icon: IconDashboard },
   { to: '/streams', label: 'Streams', Icon: IconStreams },
+  { to: '/send', label: 'Send XLM', Icon: IconSend },
   { to: '/create', label: 'Create', Icon: IconPlus },
   { to: '/activity', label: 'Activity', Icon: IconActivity },
   { to: '/architecture', label: 'Architecture', Icon: IconArchitecture },
@@ -26,13 +28,16 @@ const NAV = [
 /**
  * Left navigation. On desktop (lg+) it's a static column; on mobile it becomes
  * an off-canvas drawer toggled by the Topbar hamburger, with a dimmed backdrop.
+ * Editorial skin: hairline dividers, no filled highlight — the active item is
+ * marked by accent text + a 1px underline.
  */
 export function Sidebar({ open, onClose }: SidebarProps) {
   return (
     <>
       {/* Mobile backdrop */}
       <div
-        className={`fixed inset-0 z-30 bg-ink-900/60 backdrop-blur-sm transition-opacity lg:hidden ${
+        style={{ zIndex: 'var(--z-drawer)' }}
+        className={`fixed inset-0 bg-black/40 transition-opacity lg:hidden ${
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
         onClick={onClose}
@@ -40,62 +45,72 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-white/10 bg-ink-800/95 p-4 backdrop-blur-xl transition-transform duration-300 lg:static lg:z-auto lg:translate-x-0 lg:bg-transparent ${
+        style={{ zIndex: 'calc(var(--z-drawer) + 1)' }}
+        className={`fixed inset-y-0 left-0 flex w-64 flex-col border-r border-line bg-surface p-5 transition-transform duration-300 lg:static lg:z-auto lg:translate-x-0 lg:bg-transparent ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-gradient text-ink-900 shadow-glow">
-              <span className="text-lg font-black">S</span>
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="grid h-9 w-9 place-items-center rounded-sm border border-lineStrong bg-surface">
+              <span className="font-serif text-lg font-medium text-ink">S</span>
             </div>
             <div>
-              <div className="gradient-text text-lg font-extrabold leading-none">StreamPay</div>
-              <div className="text-[10px] uppercase tracking-widest text-slate-500">
-                Soroban streams
-              </div>
+              <div className="font-serif text-lg font-medium leading-none text-ink">StreamPay</div>
+              <div className="eyebrow mt-1 text-[0.6rem] text-faint">Soroban streams</div>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close menu"
-            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/10 lg:hidden"
+            className="grid h-8 w-8 place-items-center rounded-sm text-muted transition-colors hover:text-ink lg:hidden"
           >
             <IconClose className="h-4 w-4" />
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1">
+        <nav className="flex flex-1 flex-col gap-0.5">
           {NAV.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                `group flex items-center gap-3 rounded-sm px-2 py-2 text-sm transition-colors ${
                   isActive
-                    ? 'bg-white/10 text-slate-100'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                    ? 'font-medium text-[color:var(--active-nav)]'
+                    : 'text-muted hover:text-ink'
                 }`
               }
             >
-              <Icon className="h-5 w-5" />
-              {label}
+              {({ isActive }) => (
+                <>
+                  <Icon className="h-[1.15rem] w-[1.15rem]" />
+                  <span
+                    className={`border-b pb-px ${
+                      isActive ? 'border-[color:var(--active-nav)]' : 'border-transparent'
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
 
-        <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+        <div className="mt-4 rounded-sm border border-line p-3">
           <div className="flex items-center gap-2">
             <span
-              className={`h-2 w-2 rounded-full ${IS_MOCK ? 'bg-brand-lime' : 'bg-brand-cyan'}`}
+              className="h-1.5 w-1.5 rounded-pill"
+              style={{ background: IS_MOCK ? 'var(--accent-2)' : 'var(--accent)' }}
             />
-            <span className="text-xs font-semibold text-slate-200">
+            <span className="eyebrow text-[0.6rem] text-muted">
               {IS_MOCK ? 'Mock mode' : 'Live contract'}
             </span>
           </div>
-          <p className="mt-1 text-[11px] leading-snug text-slate-500">
+          <p className="mt-1.5 text-[11px] leading-snug text-faint">
             {IS_MOCK
               ? 'In-memory demo data. Set VITE_CONTRACT_ID to go live.'
               : 'Connected to a deployed Soroban contract.'}

@@ -37,34 +37,43 @@ export function Activity() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Activity</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <span className="eyebrow text-faint">Event log</span>
+          <h1 className="mt-3 font-display text-[clamp(1.875rem,4vw,2.5rem)] font-light leading-tight tracking-[-0.02em] text-ink">
+            Activity
+          </h1>
+          <p className="mt-3 max-w-[52ch] text-[1.0625rem] leading-relaxed text-muted">
             On-chain events across every stream, newest first.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map((f) => (
+      </div>
+
+      {/* Type filter — hairline segmented row, mono labels. */}
+      <div className="flex flex-wrap gap-1.5">
+        {FILTERS.map((f) => {
+          const active = filter === f.key;
+          return (
             <button
               key={f.key}
               type="button"
               onClick={() => setFilter(f.key)}
-              className={`chip transition-colors ${
-                filter === f.key
-                  ? 'bg-brand-cyan/15 text-brand-cyan'
-                  : 'bg-white/5 text-slate-400 hover:text-slate-200'
+              aria-pressed={active}
+              className={`rounded-sm border px-3 py-1.5 font-mono text-[0.7rem] uppercase tracking-[0.12em] transition-colors ${
+                active
+                  ? 'border-lineStrong text-ink'
+                  : 'border-line text-muted hover:text-ink'
               }`}
             >
               {f.label}
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {loading && !loaded ? (
-        <div className="glass divide-y divide-white/5 overflow-hidden">
+        <div className="divide-y divide-line overflow-hidden rounded-md border border-line">
           {Array.from({ length: 6 }).map((_, i) => (
             <RowSkeleton key={i} />
           ))}
@@ -80,15 +89,15 @@ export function Activity() {
           }
         />
       ) : (
-        <div className="glass overflow-hidden">
+        <div className="overflow-hidden rounded-md border border-line">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-3 font-medium">Event</th>
-                <th className="px-4 py-3 font-medium">Stream</th>
-                <th className="px-4 py-3 font-medium">Amount</th>
-                <th className="px-4 py-3 font-medium">Tx</th>
-                <th className="px-4 py-3 text-right font-medium">When</th>
+              <tr className="border-b border-line text-left font-mono text-[0.65rem] uppercase tracking-[0.14em] text-faint">
+                <th className="px-4 py-3 font-normal">Event</th>
+                <th className="px-4 py-3 font-normal">Stream</th>
+                <th className="px-4 py-3 font-normal">Amount</th>
+                <th className="px-4 py-3 font-normal">Tx</th>
+                <th className="px-4 py-3 text-right font-normal">When</th>
               </tr>
             </thead>
             <tbody>

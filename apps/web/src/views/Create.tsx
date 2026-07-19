@@ -90,25 +90,28 @@ export function Create() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-100">Create a stream</h1>
-        <p className="mt-1 text-sm text-slate-400">
+    <div className="mx-auto max-w-2xl space-y-8">
+      <div className="border-b border-line pb-6">
+        <span className="eyebrow text-faint">New escrow</span>
+        <h1 className="mt-3 font-display text-[clamp(1.875rem,4vw,2.5rem)] font-light leading-tight tracking-[-0.02em] text-ink">
+          Create a stream
+        </h1>
+        <p className="mt-3 max-w-[52ch] text-[1.0625rem] leading-relaxed text-muted">
           Lock funds into an escrow that disburses a fixed amount on your cadence until the plan
           ends or you cancel.
         </p>
       </div>
 
       {!publicKey && (
-        <div className="glass flex items-center gap-3 border-amber-400/30 bg-amber-400/5 p-4">
-          <IconWallet className="h-5 w-5 shrink-0 text-amber-300" />
-          <p className="text-sm text-amber-200/90">
+        <div className="flex items-center gap-3 rounded-md border border-line bg-surface2 p-4">
+          <IconWallet className="h-5 w-5 shrink-0 text-accent" />
+          <p className="text-sm text-muted">
             Connect a wallet first — the connected key becomes the escrow sender.
           </p>
         </div>
       )}
 
-      <form onSubmit={submit} className="glass space-y-5 p-6">
+      <form onSubmit={submit} className="card space-y-6 p-6">
         <div>
           <label className="label" htmlFor="label">
             Label
@@ -120,7 +123,7 @@ export function Create() {
             value={label}
             onChange={(e) => setLabel(e.target.value)}
           />
-          <p className="mt-1 text-xs text-slate-500">Optional. Shown in the UI, not stored on-chain.</p>
+          <p className="mt-1 text-xs text-faint">Optional. Shown in the UI, not stored on-chain.</p>
         </div>
 
         <div>
@@ -135,7 +138,7 @@ export function Create() {
             onChange={(e) => setRecipient(e.target.value)}
             aria-invalid={!!errors.recipient}
           />
-          {errors.recipient && <p className="mt-1 text-xs text-red-300">{errors.recipient}</p>}
+          {errors.recipient && <p className="mt-1 text-xs text-danger">{errors.recipient}</p>}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -154,7 +157,7 @@ export function Create() {
               onChange={(e) => setAmount(e.target.value)}
               aria-invalid={!!errors.amount}
             />
-            {errors.amount && <p className="mt-1 text-xs text-red-300">{errors.amount}</p>}
+            {errors.amount && <p className="mt-1 text-xs text-danger">{errors.amount}</p>}
           </div>
 
           <div>
@@ -209,7 +212,7 @@ export function Create() {
               onChange={(e) => setTotalCount(e.target.value)}
               aria-invalid={!!errors.totalCount}
             />
-            {errors.totalCount && <p className="mt-1 text-xs text-red-300">{errors.totalCount}</p>}
+            {errors.totalCount && <p className="mt-1 text-xs text-danger">{errors.totalCount}</p>}
           </div>
         </div>
 
@@ -229,25 +232,23 @@ export function Create() {
             aria-invalid={!!errors.initialDeposit}
           />
           {errors.initialDeposit ? (
-            <p className="mt-1 text-xs text-red-300">{errors.initialDeposit}</p>
+            <p className="mt-1 text-xs text-danger">{errors.initialDeposit}</p>
           ) : (
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-faint">
               Funds the escrow now. You can top up later.
             </p>
           )}
         </div>
 
         {/* Cost summary */}
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
+        <div className="rounded-md border border-line bg-surface2 p-4 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Total commitment</span>
-            <span className="font-mono text-slate-100">
-              {formatAmount(totalCommitment, asset)}
-            </span>
+            <span className="text-muted">Total commitment</span>
+            <span className="font-mono text-ink">{formatAmount(totalCommitment, asset)}</span>
           </div>
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-slate-400">Runs funded by deposit</span>
-            <span className="font-mono text-slate-100">
+            <span className="text-muted">Runs funded by deposit</span>
+            <span className="font-mono text-ink">
               {runsFunded}
               {Number.isFinite(countNum) && countNum > 0 ? ` / ${countNum}` : ''}
             </span>

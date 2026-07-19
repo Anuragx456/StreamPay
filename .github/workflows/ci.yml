@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  web:
+    name: Web (lint · design guard · build · test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Install from the workspace root so the lockfile resolves.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      # Fails the job if any banned design pattern is reintroduced in src/**.
+      - name: Design system guard
+        run: npm run check:design
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test

@@ -3,18 +3,13 @@ import type { Schedule } from '@/lib/types';
 import { cadenceLabel, formatAmount, nextDueTs, progressPct, timeAgo, truncateKey } from '@/lib/format';
 import { useStreamsStore } from '@/store/streams';
 import { ProgressBar } from './ProgressBar';
+import { StatusPill } from './StatusPill';
 import { Modal } from './Modal';
 import { IconBolt, IconPause, IconPlay, IconPlus, IconTrash } from './icons';
 
 interface StreamCardProps {
   schedule: Schedule;
 }
-
-const STATUS_STYLES: Record<Schedule['status'], string> = {
-  Active: 'bg-brand-lime/15 text-brand-lime',
-  Paused: 'bg-amber-400/15 text-amber-300',
-  Ended: 'bg-slate-500/15 text-slate-400',
-};
 
 /**
  * A single subscription stream: progress, next-due, and the mutating actions
@@ -49,26 +44,24 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
   };
 
   return (
-    <div className="glass glass-hover flex flex-col p-5 animate-fade-in">
+    <div className="card card-hover flex flex-col p-5 animate-fade-in">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-slate-100">{s.label}</h3>
-          <p className="mt-0.5 font-mono text-xs text-slate-500">
-            to {truncateKey(s.recipient)}
-          </p>
+          <h3 className="truncate font-body text-base font-semibold text-ink">{s.label}</h3>
+          <p className="mt-0.5 font-mono text-xs text-faint">to {truncateKey(s.recipient)}</p>
         </div>
-        <span className={`chip ${STATUS_STYLES[s.status]}`}>{s.status}</span>
+        <StatusPill status={s.status} />
       </div>
 
       <div className="mb-4 flex items-baseline gap-1.5">
-        <span className="text-2xl font-bold text-slate-100">{formatAmount(s.amount)}</span>
-        <span className="text-sm text-slate-400">{s.asset}</span>
-        <span className="text-xs text-slate-500">· {cadenceLabel(s.cadenceSecs)}</span>
+        <span className="font-mono text-2xl font-semibold text-ink">{formatAmount(s.amount)}</span>
+        <span className="text-sm text-muted">{s.asset}</span>
+        <span className="text-xs text-faint">· {cadenceLabel(s.cadenceSecs)}</span>
       </div>
 
       <ProgressBar pct={pct} className="mb-2" />
-      <div className="mb-4 flex items-center justify-between text-xs text-slate-400">
-        <span>
+      <div className="mb-4 flex items-center justify-between text-xs text-muted">
+        <span className="font-mono">
           {s.paidCount}/{s.totalCount} paid · {runsLeft} left
         </span>
         <span>
@@ -80,14 +73,16 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
         </span>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs">
-        <div>
-          <div className="text-slate-500">Escrow left</div>
-          <div className="font-semibold text-slate-200">{formatAmount(s.deposit, s.asset)}</div>
+      <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-sm border border-line bg-line text-xs">
+        <div className="bg-surface-2 p-3">
+          <div className="text-faint">Escrow left</div>
+          <div className="mt-0.5 font-mono font-semibold text-ink">
+            {formatAmount(s.deposit, s.asset)}
+          </div>
         </div>
-        <div>
-          <div className="text-slate-500">Committed</div>
-          <div className="font-semibold text-slate-200">
+        <div className="bg-surface-2 p-3">
+          <div className="text-faint">Committed</div>
+          <div className="mt-0.5 font-mono font-semibold text-ink">
             {formatAmount(s.amount * runsLeft, s.asset)}
           </div>
         </div>
@@ -175,7 +170,7 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
           value={topUpAmount}
           onChange={(e) => setTopUpAmount(e.target.value)}
         />
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-muted">
           Adds to the escrow balance. Current: {formatAmount(s.deposit, s.asset)}.
         </p>
       </Modal>
@@ -206,7 +201,7 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
       >
         <p>
           The remaining escrow of{' '}
-          <span className="font-semibold text-slate-100">{formatAmount(s.deposit, s.asset)}</span>{' '}
+          <span className="font-mono font-semibold text-ink">{formatAmount(s.deposit, s.asset)}</span>{' '}
           will be refunded to the sender and the stream marked <em>Ended</em>. This cannot be undone.
         </p>
       </Modal>

@@ -1,14 +1,107 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600&family=Instrument+Sans:wght@400;500;600&family=Inter:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    color-scheme: dark;
-  }
+/* ============================================================
+   DESIGN TOKENS — Warm Editorial
+   :root = LIGHT ·  [data-theme="dark"] = DARK
+   Hierarchy from type + whitespace. Hairline borders, no glow.
+   ============================================================ */
+:root {
+  color-scheme: light;
 
+  --bg: #f4f1ea; /* cream paper */
+  --surface: #fbfaf6;
+  --surface-2: #f1ede4;
+  --border: rgba(20, 18, 14, 0.12);
+  --border-strong: rgba(20, 18, 14, 0.2);
+  --text: #1a1815;
+  --text-muted: #5b564c; /* darkened from #6B655B for AA body contrast */
+  --text-faint: #857e72; /* darkened from #9A9388 for AA on cream */
+  --accent: #f5a623; /* amber — same intent both modes */
+  --accent-ink: #1a1815; /* text on accent */
+  --accent-hover: #e0940f; /* darkened amber for hover */
+  --accent-2: #0e7c66; /* teal — light active state / texture */
+  --active-nav: var(--accent-2);
+
+  /* status */
+  --status-active: var(--accent-2);
+  --status-paused: #9a6a0f; /* muted amber, AA on surface */
+  --status-ended: var(--text-faint);
+  --danger: #a12a1f; /* warm oxblood red, AA on surface */
+  --danger-surface: rgba(161, 42, 31, 0.08);
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-pill: 999px;
+
+  --shadow-mockup: 0 40px 80px -24px rgba(60, 50, 30, 0.25);
+  --hairline: 1px solid var(--border);
+
+  --font-display: 'Hanken Grotesk', 'Instrument Sans', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Fraunces', 'Newsreader', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, monospace;
+
+  /* Paper grain — subtle fractal noise, overlaid at low opacity. */
+  --bg-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --grain-opacity: 0.04;
+  --grain-blend: overlay;
+
+  /* Faint gold-leaf bleed pinned bottom-right. */
+  --goldleaf: radial-gradient(
+    40rem 32rem at 100% 100%,
+    rgba(245, 166, 35, 0.08),
+    transparent 72%
+  );
+
+  /* semantic z-index scale */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-drawer: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-toast: 600;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0c0b0a;
+  --surface: #141210; /* opaque warm-black raise (no glass) */
+  --surface-2: #1b1815;
+  --border: rgba(255, 255, 255, 0.045);
+  --border-strong: rgba(255, 255, 255, 0.09);
+  --text: #eceae3;
+  --text-muted: #a49d92; /* lightened from #9B958B for AA on #0C0B0A */
+  --text-faint: #7a7369; /* lightened from #6E685F for AA */
+  --accent: #f5b301;
+  --accent-ink: #0c0b0a;
+  --accent-hover: #ffc426;
+  --accent-2: #35a08d; /* lightened teal for dark legibility */
+  --active-nav: var(--accent); /* dark active = amber */
+
+  --status-active: var(--accent);
+  --status-paused: #d9a441; /* muted amber, AA on dark */
+  --status-ended: var(--text-faint);
+  --danger: #e88b7d;
+  --danger-surface: rgba(232, 139, 125, 0.1);
+
+  --shadow-mockup: 0 40px 80px -20px rgba(0, 0, 0, 0.7);
+
+  --grain-opacity: 0.05;
+  --grain-blend: overlay; /* fine noise on dark */
+  --goldleaf: radial-gradient(
+    40rem 32rem at 100% 100%,
+    rgba(245, 179, 1, 0.07),
+    transparent 72%
+  );
+}
+
+@layer base {
   html,
   body,
   #root {
@@ -16,12 +109,52 @@
   }
 
   body {
-    @apply bg-ink-800 text-slate-200 font-sans antialiased;
-    /* Ambient brand glow behind the whole app. */
-    background-image:
-      radial-gradient(60rem 40rem at 85% -10%, rgba(139, 92, 246, 0.14), transparent),
-      radial-gradient(50rem 40rem at 0% 110%, rgba(34, 211, 238, 0.1), transparent);
+    background-color: var(--bg);
+    background-image: var(--goldleaf);
+    background-repeat: no-repeat;
     background-attachment: fixed;
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Material texture layer: paper grain (light) / fine noise (dark). */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: var(--bg-grain);
+    background-size: 140px 140px;
+    opacity: var(--grain-opacity);
+    mix-blend-mode: var(--grain-blend);
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Editorial type defaults */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
   }
 
   ::-webkit-scrollbar {
@@ -29,50 +162,294 @@
     height: 10px;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-ink-600 rounded-full;
+    background: var(--border-strong);
+    border-radius: var(--radius-pill);
   }
   ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    background: transparent;
+  }
+
+  /* Quiet, on-brand focus ring for every control. */
+  :focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
   }
 }
 
 @layer components {
-  /* Frosted glass panel — the core surface of the UI. */
-  .glass {
-    @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl;
+  /* ---- Type primitives ---- */
+
+  /* Oversized thin brand headline (BRAND register only). */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(2.5rem, 7vw, 5.25rem);
+    letter-spacing: -0.02em;
+    line-height: 1.02;
+    color: var(--text);
   }
 
-  .glass-hover {
-    @apply transition-colors hover:border-white/20 hover:bg-white/[0.07];
-  }
-
-  /* Gradient text used for headings and stat values. */
-  .gradient-text {
-    @apply bg-brand-gradient bg-clip-text text-transparent;
-  }
-
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40;
-  }
-  .btn-primary {
-    @apply btn bg-brand-gradient text-ink-900 shadow-glow hover:brightness-110 active:scale-[0.98];
-  }
-  .btn-ghost {
-    @apply btn border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10;
-  }
-  .btn-danger {
-    @apply btn border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20;
-  }
-
-  .input {
-    @apply w-full rounded-xl border border-white/10 bg-ink-900/60 px-3 py-2 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-500 focus:border-brand-violet/60 focus:ring-2 focus:ring-brand-violet/20;
+  /* Uppercase mono eyebrow / label. Used sparingly. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.7rem;
+    color: var(--text-muted);
   }
 
   .label {
-    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400;
+    display: block;
+    margin-bottom: 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
   }
 
+  /* ---- Surfaces ----
+     Card = opaque surface + hairline border, sharp radius, NO shadow, NO blur. */
+  .card {
+    background: var(--surface);
+    border: var(--hairline);
+    border-radius: var(--radius-md);
+  }
+  .card-hover {
+    transition: border-color 0.18s ease;
+  }
+  .card-hover:hover {
+    border-color: var(--border-strong);
+  }
+
+  /* ---- Buttons ----
+     Base layout is shared by every variant so icon + label always align,
+     even when a variant class is used on its own (no bare `.btn` needed). */
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.9rem;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .btn:disabled,
+  .btn-primary:disabled,
+  .btn-ghost:disabled,
+  .btn-danger:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 1px solid transparent;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  /* Arrow nudge for buttons that carry a trailing icon/arrow. */
+  .btn-primary svg {
+    transition: transform 0.15s ease;
+  }
+  .btn-primary:hover:not(:disabled) svg:last-child {
+    transform: translateX(2px);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: var(--hairline);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--border);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: var(--danger-surface);
+    border-color: var(--danger);
+  }
+
+  /* ---- Inputs ---- */
+  .input {
+    width: 100%;
+    background: var(--surface-2);
+    border: var(--hairline);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .input::placeholder {
+    color: var(--text-faint);
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+
+  /* ---- Pills / chips ---- */
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: var(--hairline);
+    border-radius: var(--radius-pill);
+    padding: 0.15rem 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* Status pill: hairline border, mono uppercase, colored text only.
+     No filled neon backgrounds. Color is set via --pill-color inline. */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--pill-color, var(--border));
+    border-radius: var(--radius-pill);
+    padding: 0.12rem 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--pill-color, var(--text-muted));
+    background: transparent;
+  }
+  .status-pill .dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: var(--radius-pill);
+    background: currentColor;
+  }
+
+  /* ---- Progress bar ---- */
+  .progress-track {
+    height: 0.375rem;
+    width: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--surface-2);
+    border: var(--hairline);
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* ---- Skeleton ----
+     Functional loading affordance (not decoration): a quiet token-based sweep. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--border),
+      transparent
+    );
+    animation: skeleton-sweep 1.6s ease-in-out infinite;
+  }
+
+  /* ---- Integration logo row (brand register) ----
+     Colorized in light (teal — the light-mode texture accent); desaturated to
+     mono + dimmed in dark so the marks recede against the darker surface.
+     Token-only: no new colors. */
+  .logo-row {
+    color: var(--accent-2);
+  }
+  [data-theme='dark'] .logo-row {
+    color: var(--text-muted);
+    filter: grayscale(1);
+    opacity: 0.7;
+  }
+
+  /* ---- Marquee (brand register) ---- */
+  .marquee {
+    display: flex;
+    width: max-content;
+    animation: marquee 40s linear infinite;
+  }
+  .marquee-track:hover .marquee {
+    animation-play-state: paused;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-body {
+    font-family: var(--font-body);
+  }
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes skeleton-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    animation: none;
+  }
+  .skeleton::after {
+    animation: none;
+  }
+  .progress-fill {
+    transition: none;
+  }
+  * {
+    scroll-behavior: auto !important;
   }
 }

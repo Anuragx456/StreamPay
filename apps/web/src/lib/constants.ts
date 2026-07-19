@@ -26,3 +26,20 @@ export const NETWORK_PASSPHRASE =
   import.meta.env.VITE_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015';
 export const SOROBAN_RPC_URL =
   import.meta.env.VITE_SOROBAN_RPC_URL ?? 'https://soroban-testnet.stellar.org';
+
+/**
+ * Horizon endpoint for classic operations (account/balance lookups and native
+ * XLM payments). This is separate from the Soroban RPC url above and is used by
+ * the Level 1 wallet flow (connect → balance → send), which works on testnet
+ * regardless of whether VITE_CONTRACT_ID is set.
+ */
+export const HORIZON_URL =
+  import.meta.env.VITE_HORIZON_URL ?? 'https://horizon-testnet.stellar.org';
+
+/** Whether we're pointed at testnet (enables friendbot funding + explorer links). */
+export const IS_TESTNET = NETWORK_PASSPHRASE.includes('Test SDF Network');
+
+/** Stellar Expert base for linking a tx hash, keyed to the active network. */
+export const EXPLORER_TX_BASE = IS_TESTNET
+  ? 'https://stellar.expert/explorer/testnet/tx'
+  : 'https://stellar.expert/explorer/public/tx';

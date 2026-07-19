@@ -1,48 +1,59 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class',
+  // Dark mode is driven by [data-theme="dark"] on <html>, set by useTheme.
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      // Every color maps to a CSS custom property so light/dark swap for free.
       colors: {
-        // Base surfaces for the dark glassmorphism theme.
-        ink: {
-          900: '#07070d',
-          800: '#0a0a12',
-          700: '#12121d',
-          600: '#1a1a2b',
-        },
-        // Brand accents: cyan -> violet -> lime.
-        brand: {
-          cyan: '#22d3ee',
-          violet: '#8b5cf6',
-          lime: '#a3e635',
-        },
+        bg: 'var(--bg)',
+        surface: 'var(--surface)',
+        surface2: 'var(--surface-2)',
+        line: 'var(--border)',
+        lineStrong: 'var(--border-strong)',
+        ink: 'var(--text)',
+        muted: 'var(--text-muted)',
+        faint: 'var(--text-faint)',
+        accent: 'var(--accent)',
+        accentInk: 'var(--accent-ink)',
+        accent2: 'var(--accent-2)',
+        activeNav: 'var(--active-nav)',
+        statusActive: 'var(--status-active)',
+        statusPaused: 'var(--status-paused)',
+        statusEnded: 'var(--status-ended)',
+        danger: 'var(--danger)',
+      },
+      // Sharp / minimal radii only — no lg/xl/2xl.
+      borderRadius: {
+        xs: 'var(--radius-xs)',
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        pill: 'var(--radius-pill)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        display: 'var(--font-display)',
+        body: 'var(--font-body)',
+        serif: 'var(--font-serif)',
+        mono: 'var(--font-mono)',
       },
-      backgroundImage: {
-        'brand-gradient':
-          'linear-gradient(135deg, #22d3ee 0%, #8b5cf6 50%, #a3e635 100%)',
-      },
+      // The ONLY shadow in the system — reserved for the browser mockup.
       boxShadow: {
-        glow: '0 0 40px -10px rgba(139, 92, 246, 0.5)',
+        mockup: 'var(--shadow-mockup)',
       },
       keyframes: {
         'fade-in': {
           '0%': { opacity: '0', transform: 'translateY(4px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        shimmer: {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
         },
       },
       animation: {
-        'fade-in': 'fade-in 0.3s ease-out',
-        shimmer: 'shimmer 2s linear infinite',
+        'fade-in': 'fade-in 0.25s ease-out',
+        marquee: 'marquee 40s linear infinite',
       },
     },
   },

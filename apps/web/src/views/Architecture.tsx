@@ -1,5 +1,6 @@
 import { IS_MOCK } from '@/lib/contract';
 import { NETWORK, SOROBAN_RPC_URL } from '@/lib/constants';
+import { BrowserMockup } from '@/components/BrowserMockup';
 import { IconActivity, IconArchitecture, IconBolt, IconStreams, IconWallet } from '@/components/icons';
 
 /**
@@ -12,7 +13,6 @@ interface Piece {
   title: string;
   body: string;
   icon: JSX.Element;
-  accent: string;
 }
 
 const PIECES: Piece[] = [
@@ -20,25 +20,21 @@ const PIECES: Piece[] = [
     title: 'Sender',
     body: 'Locks funds into the escrow and sets the recipient, per-installment amount, cadence, and installment count. Can top up or cancel at any time.',
     icon: <IconWallet className="h-5 w-5" />,
-    accent: 'text-brand-cyan',
   },
   {
     title: 'Subscription contract (escrow)',
     body: 'Holds the deposit on-chain. pay_next() enforces the cadence timing, deposit sufficiency, and installment cap before disbursing to the recipient — the same guards mirrored in this UI.',
     icon: <IconStreams className="h-5 w-5" />,
-    accent: 'text-brand-violet',
   },
   {
     title: 'Off-chain watcher',
     body: 'Soroban contracts cannot self-execute. A Node cron polls due schedules and submits pay_next() on schedule, paying fees from a funded account.',
     icon: <IconActivity className="h-5 w-5" />,
-    accent: 'text-brand-lime',
   },
   {
     title: 'Recipient',
     body: 'Receives a fixed amount each cadence until the installment count is reached or the sender cancels and the remainder is refunded.',
     icon: <IconBolt className="h-5 w-5" />,
-    accent: 'text-brand-cyan',
   },
 ];
 
@@ -50,64 +46,76 @@ const CONFIG: { label: string; value: string }[] = [
 
 export function Architecture() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-100">Architecture</h1>
-        <p className="mt-1 max-w-2xl text-sm text-slate-400">
+    <div className="space-y-10">
+      <div className="border-b border-line pb-6">
+        <span className="eyebrow text-faint">How it works</span>
+        <h1 className="mt-3 font-display text-[clamp(1.875rem,4vw,2.5rem)] font-light leading-tight tracking-[-0.02em] text-ink">
+          Architecture
+        </h1>
+        <p className="mt-3 max-w-[60ch] text-[1.0625rem] leading-relaxed text-muted">
           A sender locks funds into an escrow contract that disburses a fixed amount to a recipient
           on a cadence. Because Soroban contracts cannot self-execute, an off-chain watcher triggers{' '}
-          <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-xs">pay_next()</code> on
-          schedule.
+          <code className="rounded-xs bg-surface2 px-1.5 py-0.5 font-mono text-[0.8em] text-ink">
+            pay_next()
+          </code>{' '}
+          on schedule.
         </p>
       </div>
 
-      {/* Flow diagram */}
-      <section className="glass p-6">
-        <div className="flex flex-col items-stretch gap-3 lg:flex-row lg:items-center">
-          <FlowNode label="Sender" sub="deposit" accent="text-brand-cyan" />
-          <FlowArrow label="deposit" />
-          <FlowNode label="Escrow contract" sub="pay_next()" accent="text-brand-violet" />
-          <FlowArrow label="disburse" />
-          <FlowNode label="Recipient" sub="receives" accent="text-brand-cyan" />
-        </div>
-        <div className="mt-4 flex items-center justify-center">
-          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
-            <IconActivity className="h-4 w-4 text-brand-lime" />
-            Off-chain watcher triggers <span className="font-mono text-xs">pay_next()</span> on a cron
+      {/* Flow diagram, shown inside a browser mockup — the one place a soft shadow is allowed. */}
+      <section>
+        <BrowserMockup url="streampay.app/flow">
+          <div className="bg-surface p-6 sm:p-8">
+            <div className="flex flex-col items-stretch gap-3 lg:flex-row lg:items-center">
+              <FlowNode label="Sender" sub="deposit" />
+              <FlowArrow label="deposit" />
+              <FlowNode label="Escrow contract" sub="pay_next()" />
+              <FlowArrow label="disburse" />
+              <FlowNode label="Recipient" sub="receives" />
+            </div>
+            <div className="mt-6 flex items-center justify-center">
+              <div className="flex items-center gap-2 rounded-sm border border-line px-4 py-2 text-sm text-muted">
+                <IconActivity className="h-4 w-4 text-accent" />
+                Off-chain watcher triggers
+                <span className="font-mono text-xs text-ink">pay_next()</span> on a cron
+              </div>
+            </div>
           </div>
-        </div>
+        </BrowserMockup>
       </section>
 
       {/* Pieces */}
-      <section className="grid gap-4 sm:grid-cols-2">
+      <section className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2">
         {PIECES.map((p) => (
-          <div key={p.title} className="glass p-5">
+          <div key={p.title} className="bg-surface p-5">
             <div className="flex items-center gap-3">
-              <span className={`grid h-10 w-10 place-items-center rounded-xl bg-white/5 ${p.accent}`}>
+              <span className="grid h-9 w-9 place-items-center rounded-sm border border-line text-muted">
                 {p.icon}
               </span>
-              <h2 className="text-base font-semibold text-slate-100">{p.title}</h2>
+              <h2 className="text-[0.95rem] font-semibold text-ink">{p.title}</h2>
             </div>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400">{p.body}</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted">{p.body}</p>
           </div>
         ))}
       </section>
 
       {/* Runtime config */}
-      <section className="glass p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <IconArchitecture className="h-5 w-5 text-brand-violet" />
-          <h2 className="text-lg font-semibold text-slate-100">Runtime configuration</h2>
+      <section className="card p-6">
+        <div className="mb-5 flex items-center gap-2 border-b border-line pb-3">
+          <IconArchitecture className="h-5 w-5 text-muted" />
+          <h2 className="font-display text-xl font-light tracking-tight text-ink">
+            Runtime configuration
+          </h2>
         </div>
-        <dl className="grid gap-3 sm:grid-cols-3">
+        <dl className="grid gap-px overflow-hidden rounded-sm border border-line bg-line sm:grid-cols-3">
           {CONFIG.map((c) => (
-            <div key={c.label} className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <dt className="text-xs uppercase tracking-wide text-slate-500">{c.label}</dt>
-              <dd className="mt-1 break-words font-mono text-sm text-slate-200">{c.value}</dd>
+            <div key={c.label} className="bg-surface p-4">
+              <dt className="eyebrow text-faint">{c.label}</dt>
+              <dd className="mt-2 break-words font-mono text-sm text-ink">{c.value}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-4 text-xs text-slate-500">
+        <p className="mt-4 text-xs text-faint">
           {IS_MOCK
             ? 'Running fully in-memory. Set VITE_CONTRACT_ID to point the app at a deployed Soroban contract.'
             : 'Connected to a deployed Soroban contract. Mutating calls are signed by the connected wallet.'}
@@ -117,22 +125,22 @@ export function Architecture() {
   );
 }
 
-function FlowNode({ label, sub, accent }: { label: string; sub: string; accent: string }) {
+function FlowNode({ label, sub }: { label: string; sub: string }) {
   return (
-    <div className="glass flex-1 p-4 text-center">
-      <div className={`text-sm font-semibold ${accent}`}>{label}</div>
-      <div className="mt-1 font-mono text-xs text-slate-500">{sub}</div>
+    <div className="flex-1 rounded-sm border border-line bg-bg p-4 text-center">
+      <div className="text-sm font-semibold text-ink">{label}</div>
+      <div className="mt-1 font-mono text-xs text-muted">{sub}</div>
     </div>
   );
 }
 
 function FlowArrow({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-center text-slate-500">
-      <span className="hidden text-xs lg:block" aria-hidden="true">
+    <div className="flex items-center justify-center text-faint">
+      <span className="hidden font-mono text-xs lg:block" aria-hidden="true">
         {label} →
       </span>
-      <span className="text-xs lg:hidden" aria-hidden="true">
+      <span className="font-mono text-xs lg:hidden" aria-hidden="true">
         ↓ {label}
       </span>
     </div>

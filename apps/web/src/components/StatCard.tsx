@@ -5,22 +5,26 @@ interface StatCardProps {
   value: string;
   hint?: string;
   icon: ReactNode;
-  /** Tailwind text color class for the icon accent, e.g. "text-brand-cyan". */
+  /** Legacy prop — accepted but no longer used (single-accent system). */
   accent?: string;
 }
 
-/** Compact KPI card used in the dashboard stat row. */
-export function StatCard({ label, value, hint, icon, accent = 'text-brand-cyan' }: StatCardProps) {
+/**
+ * Compact KPI card. Editorial register: hairline surface, mono uppercase label,
+ * the number is the hero (display face). No accent color on the value — the
+ * numbers carry themselves; the icon sits quiet in muted ink.
+ */
+export function StatCard({ label, value, hint, icon }: StatCardProps) {
   return (
-    <div className="glass glass-hover p-4">
+    <div className="card card-hover p-4">
       <div className="flex items-start justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</span>
-        <span className={`grid h-8 w-8 place-items-center rounded-lg bg-white/5 ${accent}`}>
-          {icon}
-        </span>
+        <span className="eyebrow text-faint">{label}</span>
+        <span className="grid h-7 w-7 place-items-center text-faint">{icon}</span>
       </div>
-      <div className="mt-3 text-2xl font-bold text-slate-100">{value}</div>
-      {hint && <div className="mt-1 text-xs text-slate-500">{hint}</div>}
+      <div className="mt-4 font-display text-[2rem] font-light leading-none tracking-tight text-ink">
+        {value}
+      </div>
+      {hint && <div className="mt-2 font-mono text-xs text-muted">{hint}</div>}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { StatCard } from '@/components/StatCard';
 import { StreamCard } from '@/components/StreamCard';
 import { EventRow } from '@/components/EventRow';
 import { EmptyState } from '@/components/EmptyState';
+import { EventMarquee } from '@/components/EventMarquee';
 import { StatCardSkeleton, StreamCardSkeleton } from '@/components/Skeleton';
 import { IconActivity, IconArrow, IconBolt, IconStreams, IconWallet } from '@/components/icons';
 import { formatCompact, nextDueTs, timeAgo } from '@/lib/format';
@@ -54,32 +55,34 @@ export function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Hero */}
-      <section className="glass relative overflow-hidden p-6 sm:p-8">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-violet/20 blur-3xl" />
-        <div className="relative">
-          <span className="chip bg-white/5 text-slate-300">Soroban · {}</span>
-          <h1 className="mt-3 max-w-2xl text-3xl font-extrabold leading-tight sm:text-4xl">
-            Program money to <span className="gradient-text">stream itself</span>.
-          </h1>
-          <p className="mt-2 max-w-xl text-sm text-slate-400">
-            Lock funds once. StreamPay disburses a fixed amount on your cadence until the plan ends
-            or you cancel — enforced on-chain, triggered by an off-chain watcher.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link to="/create" className="btn-primary">
-              <IconBolt className="h-4 w-4" /> New stream
-            </Link>
-            <button type="button" className="btn-ghost" onClick={simulateTick} disabled={loading}>
-              <IconActivity className="h-4 w-4" /> Simulate tick
-            </button>
-          </div>
+    <div className="space-y-10">
+      {/* Hero — editorial: oversized thin headline, no glow, no gradient. */}
+      <section className="border-b border-line pb-10 pt-2">
+        <span className="eyebrow text-faint">Soroban · Recurring payments</span>
+        <h1 className="mt-4 max-w-3xl font-display text-[clamp(2.25rem,5.5vw,3.75rem)] font-light leading-[1.04] tracking-[-0.02em] text-ink">
+          Program money to stream itself.
+        </h1>
+        <p className="mt-4 max-w-[52ch] text-[1.0625rem] leading-relaxed text-muted">
+          Lock funds once. StreamPay disburses a fixed amount on your cadence until the plan ends
+          or you cancel — enforced on-chain, triggered by an off-chain watcher.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          <Link to="/create" className="btn-primary">
+            New stream <IconArrow className="h-4 w-4" />
+          </Link>
+          <button
+            type="button"
+            className="text-sm font-medium text-muted underline-offset-4 transition-colors hover:text-ink hover:underline disabled:opacity-40"
+            onClick={simulateTick}
+            disabled={loading}
+          >
+            <IconActivity className="mr-1.5 inline h-4 w-4 align-text-bottom" /> Simulate watcher tick
+          </button>
         </div>
       </section>
 
       {/* Stats */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line lg:grid-cols-4">
         {loading && !loaded ? (
           Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
@@ -89,39 +92,49 @@ export function Dashboard() {
               value={String(stats.activeCount)}
               hint={`${schedules.length} total`}
               icon={<IconStreams className="h-4 w-4" />}
-              accent="text-brand-cyan"
             />
             <StatCard
               label="Total locked"
               value={formatCompact(stats.totalLocked)}
               hint="across all escrows"
               icon={<IconWallet className="h-4 w-4" />}
-              accent="text-brand-violet"
             />
             <StatCard
               label="Monthly outflow"
               value={formatCompact(stats.monthlyOutflow)}
               hint="normalized ~30d"
               icon={<IconActivity className="h-4 w-4" />}
-              accent="text-brand-lime"
             />
             <StatCard
               label="Next disbursement"
               value={stats.nextDue ? timeAgo(stats.nextDue) : '—'}
               hint={stats.activeCount ? 'soonest due' : 'no active streams'}
               icon={<IconBolt className="h-4 w-4" />}
-              accent="text-brand-cyan"
             />
           </>
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      {/* Live events marquee — infinite scroll of the most recent disbursements. */}
+      {loaded && events.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-pill bg-accent2" />
+            <h2 className="eyebrow text-muted">Live activity</h2>
+          </div>
+          <EventMarquee events={events} />
+        </section>
+      )}
+
+      <div className="grid gap-10 lg:grid-cols-3">
         {/* Active streams */}
         <section className="lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-100">Active streams</h2>
-            <Link to="/streams" className="flex items-center gap-1 text-sm text-brand-cyan hover:underline">
+          <div className="mb-4 flex items-center justify-between border-b border-line pb-3">
+            <h2 className="font-display text-xl font-light tracking-tight text-ink">Active streams</h2>
+            <Link
+              to="/streams"
+              className="flex items-center gap-1 text-sm text-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
+            >
               View all <IconArrow className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -138,7 +151,7 @@ export function Dashboard() {
                   message="Create your first recurring payment to see it here."
                   action={
                     <Link to="/create" className="btn-primary">
-                      <IconBolt className="h-4 w-4" /> New stream
+                      New stream <IconArrow className="h-4 w-4" />
                     </Link>
                   }
                 />
@@ -147,14 +160,22 @@ export function Dashboard() {
           </div>
         </section>
 
-        {/* Live events */}
+        {/* Recent activity list */}
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-100">Live activity</h2>
-          <div className="glass divide-y divide-white/5 overflow-hidden">
+          <h2 className="mb-4 border-b border-line pb-3 font-display text-xl font-light tracking-tight text-ink">
+            Recent
+          </h2>
+          <div className="overflow-hidden rounded-md border border-line">
             {loaded && events.length === 0 ? (
-              <div className="p-6 text-center text-sm text-slate-500">No events yet.</div>
+              <div className="p-6 text-center font-mono text-xs uppercase tracking-widest text-faint">
+                No events yet
+              </div>
             ) : (
-              events.slice(0, 8).map((e) => <EventRow key={e.id} event={e} />)
+              <div className="divide-y divide-line px-4">
+                {events.slice(0, 8).map((e) => (
+                  <EventRow key={e.id} event={e} compact />
+                ))}
+              </div>
             )}
           </div>
         </section>
