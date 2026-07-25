@@ -3,12 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Off-chain cron watcher that triggers pay_next() on due StreamPay schedules. Full implementation lands in STEP 7.",
+  "description": "Off-chain cron watcher that triggers pay_next() on due StreamPay schedules.",
   "scripts": {
     "start": "tsx src/index.ts",
     "once": "tsx src/index.ts --once",
-    "lint": "echo \"(watcher) no source yet — STEP 7\"",
-    "test": "echo \"(watcher) no tests yet — STEP 7\""
+    "lint": "tsc --noEmit -p .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^12.3.0",
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@types/node": "^22.7.4",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.2"
   }
 }

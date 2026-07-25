@@ -18,6 +18,7 @@ import {
 } from '../lib/walletKit';
 import { fetchXlmBalance } from '../lib/stellar';
 import { toast } from './toast';
+import { errorMessage } from '../lib/errors';
 
 /** Wallet ids the kit reports; kept loose since the kit owns the list. */
 export type WalletId = string;
@@ -77,7 +78,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       set({ connecting: false });
       toast.error(
         'Connection failed',
-        err instanceof Error ? err.message : 'Could not connect the wallet.',
+        errorMessage(err),
       );
     }
   },

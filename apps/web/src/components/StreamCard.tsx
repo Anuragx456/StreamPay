@@ -6,6 +6,7 @@ import { ProgressBar } from './ProgressBar';
 import { StatusPill } from './StatusPill';
 import { Modal } from './Modal';
 import { IconBolt, IconPause, IconPlay, IconPlus, IconTrash } from './icons';
+import { TransactionFeedback } from './TransactionFeedback';
 
 interface StreamCardProps {
   schedule: Schedule;
@@ -24,6 +25,11 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
   const resume = useStreamsStore((st) => st.resume);
   const cancel = useStreamsStore((st) => st.cancel);
   const deposit = useStreamsStore((st) => st.deposit);
+  const transaction = useStreamsStore((st) =>
+    Object.entries(st.transactions)
+      .filter(([key]) => key.startsWith(`${s.id}:`))
+      .at(-1)?.[1],
+  );
 
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -141,6 +147,7 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
           </button>
         )}
       </div>
+      <TransactionFeedback feedback={transaction} />
 
       {/* Top-up modal */}
       <Modal

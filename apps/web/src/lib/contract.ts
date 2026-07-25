@@ -6,16 +6,26 @@
 
 import { IS_MOCK } from './constants';
 import { mockClient, type StreamSnapshot } from './mockClient';
-import type { CreateScheduleInput } from './types';
+import type {
+  CreateScheduleInput,
+  EventPage,
+  TransactionProgress,
+  TransactionReceipt,
+} from './types';
 
 export interface ContractClient {
   getSnapshot(): Promise<StreamSnapshot>;
-  initSchedule(input: CreateScheduleInput, sender: string): Promise<string>;
-  deposit(id: string, amount: number): Promise<void>;
-  payNext(id: string): Promise<void>;
-  pause(id: string): Promise<void>;
-  resume(id: string): Promise<void>;
-  cancel(id: string): Promise<void>;
+  getEvents(cursor?: string): Promise<EventPage>;
+  initSchedule(
+    input: CreateScheduleInput,
+    sender: string,
+    progress?: TransactionProgress,
+  ): Promise<TransactionReceipt<string>>;
+  deposit(id: string, amount: number, progress?: TransactionProgress): Promise<TransactionReceipt>;
+  payNext(id: string, progress?: TransactionProgress): Promise<TransactionReceipt>;
+  pause(id: string, progress?: TransactionProgress): Promise<TransactionReceipt>;
+  resume(id: string, progress?: TransactionProgress): Promise<TransactionReceipt>;
+  cancel(id: string, progress?: TransactionProgress): Promise<TransactionReceipt>;
 }
 
 /**
@@ -49,12 +59,14 @@ async function getClient(): Promise<ContractClient> {
  */
 export const contract: ContractClient = {
   getSnapshot: async () => (await getClient()).getSnapshot(),
-  initSchedule: async (input, sender) => (await getClient()).initSchedule(input, sender),
-  deposit: async (id, amount) => (await getClient()).deposit(id, amount),
-  payNext: async (id) => (await getClient()).payNext(id),
-  pause: async (id) => (await getClient()).pause(id),
-  resume: async (id) => (await getClient()).resume(id),
-  cancel: async (id) => (await getClient()).cancel(id),
+  getEvents: async (cursor) => (await getClient()).getEvents(cursor),
+  initSchedule: async (input, sender, progress) =>
+    (await getClient()).initSchedule(input, sender, progress),
+  deposit: async (id, amount, progress) => (await getClient()).deposit(id, amount, progress),
+  payNext: async (id, progress) => (await getClient()).payNext(id, progress),
+  pause: async (id, progress) => (await getClient()).pause(id, progress),
+  resume: async (id, progress) => (await getClient()).resume(id, progress),
+  cancel: async (id, progress) => (await getClient()).cancel(id, progress),
 };
 
 export { IS_MOCK };

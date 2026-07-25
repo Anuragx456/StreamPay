@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useStreamsStore } from '@/store/streams';
 import { useWalletStore } from '@/store/wallet';
 import { ASSETS, CADENCES } from '@/lib/constants';
 import { formatAmount } from '@/lib/format';
 import { toast } from '@/store/toast';
 import { IconBolt, IconWallet } from '@/components/icons';
+import { TransactionFeedback } from '@/components/TransactionFeedback';
 
 /** A Stellar public key is a 56-char base32 string starting with G. */
 const PUBKEY_RE = /^G[A-Z2-7]{55}$/;
@@ -21,8 +21,8 @@ const DEFAULT_CADENCE_SECS =
  * the connected key becomes the escrow's sender.
  */
 export function Create() {
-  const navigate = useNavigate();
   const create = useStreamsStore((s) => s.create);
+  const transaction = useStreamsStore((s) => s.transactions.create);
   const publicKey = useWalletStore((s) => s.publicKey);
 
   const [label, setLabel] = useState('');
@@ -73,7 +73,7 @@ export function Create() {
       return;
     }
     setSubmitting(true);
-    const id = await create(
+    await create(
       {
         recipient: recipient.trim(),
         label: label.trim(),
@@ -86,7 +86,6 @@ export function Create() {
       publicKey,
     );
     setSubmitting(false);
-    if (id) navigate('/streams');
   };
 
   return (
@@ -265,6 +264,7 @@ export function Create() {
             {submitting ? 'Creating…' : 'Create stream'}
           </button>
         </div>
+        <TransactionFeedback feedback={transaction} />
       </form>
     </div>
   );

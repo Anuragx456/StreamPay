@@ -48,14 +48,14 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         style={{ background: 'rgba(20, 18, 14, 0.55)' }}
       />
       {/* Panel */}
-      <div className="card relative z-10 w-full max-w-md p-5 animate-fade-in">
+      <div className="card relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto p-5 animate-fade-in">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-normal text-ink">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid h-8 w-8 place-items-center rounded-sm text-muted transition-colors hover:bg-surface2 hover:text-ink"
+            className="grid h-11 w-11 place-items-center rounded-sm text-muted transition-colors hover:bg-surface2 hover:text-ink"
           >
             <IconClose className="h-4 w-4" />
           </button>

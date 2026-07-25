@@ -1,0 +1,26 @@
+name: Testnet watcher
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pay-due-streams:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run watcher:once
+        env:
+          WATCHER_SECRET: ${{ secrets.WATCHER_SECRET }}
+          CONTRACT_ID: ${{ vars.STELLAR_CONTRACT_ID }}
+          SOROBAN_RPC_URL: https://soroban-testnet.stellar.org
+          NETWORK_PASSPHRASE: Test SDF Network ; September 2015

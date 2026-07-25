@@ -15,9 +15,11 @@
 
 #![cfg(test)]
 
+extern crate std;
+
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger, MockAuth, MockAuthInvoke},
+    testutils::{Address as _, Events, Ledger, MockAuth, MockAuthInvoke},
     token, Address, Env, IntoVal,
 };
 
@@ -249,6 +251,43 @@ fn pause_blocks_payment_then_resume_allows_it() {
     s.contract.resume(&id);
     s.contract.pay_next(&id);
     assert_eq!(s.contract.get_schedule(&id).paid_count, 1);
+}
+
+#[test]
+fn emits_typed_lifecycle_events() {
+    let s = setup();
+    s.env.mock_all_auths();
+    let id = s.contract.init_schedule(
+        &s.sender,
+        &s.recipient,
+        &(10 * UNIT),
+        &s.asset,
+        &(7 * 86_400),
+        &4,
+    );
+    assert_last_event(&s, "created");
+    s.contract.deposit(&id, &(40 * UNIT));
+    assert_last_event(&s, "deposit");
+    s.contract.pause(&id);
+    assert_last_event(&s, "status");
+    s.contract.resume(&id);
+    assert_last_event(&s, "status");
+    let created = s.contract.get_schedule(&id).created_ts;
+    s.env.ledger().set_timestamp(created + 7 * 86_400);
+    s.contract.pay_next(&id);
+    assert_last_event(&s, "payment");
+    s.env.mock_all_auths();
+    s.contract.cancel(&id);
+    assert_last_event(&s, "cancel");
+}
+
+fn assert_last_event(s: &Setup, name: &str) {
+    let events = s.env.events().all().filter_by_contract(&s.contract.address);
+    assert_eq!(events.events().len(), 1, "expected one {name} event");
+    assert!(
+        std::format!("{events:?}").contains(name),
+        "missing {name} topic"
+    );
 }
 
 /// The core security property: auth is bound to the *stored* sender, not the

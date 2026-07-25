@@ -15,9 +15,10 @@
     "watcher:once": "npm run once --workspace apps/watcher",
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write \"apps/**/src/**/*.{ts,tsx,css,json}\"",
-    "test": "npm run test --workspace apps/web",
-    "contract:build": "cd contracts/subscription && soroban contract build",
-    "contract:test": "cd contracts/subscription && cargo test"
+    "test": "npm run test --workspaces --if-present",
+    "contract:build": "cd contracts/subscription && stellar contract build",
+    "contract:test": "cd contracts/subscription && cargo test",
+    "contract:deploy": "stellar contract deploy --wasm contracts/subscription/target/wasm32v1-none/release/streampay_subscription.wasm --source streampay --network testnet"
   },
   "devDependencies": {
     "prettier": "^3.3.3"

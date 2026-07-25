@@ -64,7 +64,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             type="button"
             onClick={onClose}
             aria-label="Close menu"
-            className="grid h-8 w-8 place-items-center rounded-sm text-muted transition-colors hover:text-ink lg:hidden"
+            className="grid h-11 w-11 place-items-center rounded-sm text-muted transition-colors hover:text-ink lg:hidden"
           >
             <IconClose className="h-4 w-4" />
           </button>
@@ -77,7 +77,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               to={to}
               onClick={onClose}
               className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-sm px-2 py-2 text-sm transition-colors ${
+                `group flex min-h-11 items-center gap-3 rounded-sm px-2 py-2 text-sm transition-colors ${
                   isActive
                     ? 'font-medium text-[color:var(--active-nav)]'
                     : 'text-muted hover:text-ink'

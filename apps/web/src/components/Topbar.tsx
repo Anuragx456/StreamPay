@@ -25,13 +25,13 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
   return (
     <header
       style={{ zIndex: 'var(--z-sticky)' }}
-      className="sticky top-0 flex items-center gap-3 border-b border-line bg-bg px-4 py-3 sm:px-6"
+      className="sticky top-0 flex items-center gap-2 border-b border-line bg-bg px-3 py-2 sm:gap-3 sm:px-6 sm:py-3"
     >
       <button
         type="button"
         onClick={onOpenMenu}
         aria-label="Open menu"
-        className="grid h-9 w-9 place-items-center rounded-sm text-muted transition-colors hover:text-ink lg:hidden"
+        className="grid h-11 w-11 place-items-center rounded-sm text-muted transition-colors hover:text-ink lg:hidden"
       >
         <IconMenu className="h-5 w-5" />
       </button>
@@ -42,12 +42,12 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
 
       {publicKey ? (
         <div className="flex items-center gap-2">
-          <span className="chip" title={publicKey}>
+          <span className="chip hidden sm:inline-flex" title={publicKey}>
             <span className="h-1.5 w-1.5 rounded-pill" style={{ background: 'var(--accent-2)' }} />
             <span className="font-mono">{truncateKey(publicKey)}</span>
             {walletId && <span className="text-faint">· {walletId}</span>}
           </span>
-          <span className="chip" title="Native XLM balance (testnet)">
+          <span className="chip hidden md:inline-flex" title="Native XLM balance (testnet)">
             {balanceLoading ? (
               <span className="text-faint">loading…</span>
             ) : balance === null ? (

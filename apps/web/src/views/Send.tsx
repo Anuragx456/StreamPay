@@ -18,6 +18,7 @@ import { IS_TESTNET } from '@/lib/constants';
 import { formatAmount, truncateKey } from '@/lib/format';
 import { toast } from '@/store/toast';
 import { IconSend, IconWallet, IconCheck, IconExternal } from '@/components/icons';
+import { errorMessage } from '@/lib/errors';
 
 /** Outcome of the most recent send, shown in the feedback panel. */
 type SendResult =
@@ -88,7 +89,7 @@ export function Send() {
       setAmount('');
       void refreshBalance();
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       setResult({ state: 'error', message });
       toast.error('Payment failed', message);
     } finally {

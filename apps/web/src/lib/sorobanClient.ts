@@ -1,19 +1,17 @@
 // Real Soroban client. Mirrors the ContractClient interface used by the UI, but
-// talks to a deployed subscription contract over RPC and signs mutating calls
+// talks to the deployed subscription contract over RPC and signs mutating calls
 // with the connected wallet (stellar-wallets-kit).
 //
-// IMPORTANT — verification status: this path is written against the
-// @stellar/stellar-sdk v12 API (SorobanRpc namespace, TransactionBuilder +
-// prepareTransaction, nativeToScVal/scValToNative) which was confirmed against
-// the v12 changelog. It has NOT been exercised end-to-end against a live
-// deployment in this environment (no contract id / toolchain here). The spots
-// most likely to need adjustment on first real run are flagged inline with
-// `REVIEW:` comments. Until VITE_CONTRACT_ID is set, lib/contract.ts uses the
-// mock client and none of this code runs.
+// Reads are done via account-less simulation (no wallet needed), so the
+// dashboard loads schedules + the event feed before a wallet is connected.
+// Mutations (create/deposit/pay/pause/resume/cancel) require the connected
+// wallet as source + signer.
 
 import {
+  Account,
   Address,
   Contract,
+  Keypair,
   nativeToScVal,
   scValToNative,
   TransactionBuilder,
@@ -23,63 +21,127 @@ import {
 } from '@stellar/stellar-sdk';
 import type { StreamSnapshot } from './mockClient';
 import type { ContractClient } from './contract';
-import {
-  CONTRACT_ID,
-  NETWORK_PASSPHRASE,
-  SOROBAN_RPC_URL,
-} from './constants';
-import type { CreateScheduleInput, Schedule, ScheduleStatus, StreamEvent } from './types';
+import { CONTRACT_ID, NETWORK_PASSPHRASE, SOROBAN_RPC_URL } from './constants';
+import { assetAddress, assetLabel } from './assets';
+import type {
+  CreateScheduleInput,
+  EventPage,
+  Schedule,
+  ScheduleStatus,
+  StreamEvent,
+  TransactionProgress,
+  TransactionReceipt,
+} from './types';
 
 /**
  * Signs a transaction's XDR and returns the signed XDR. The wallet store wires
- * this to stellar-wallets-kit's `signTransaction`. Kept as an injected function
- * so this module has no direct dependency on the wallet UI/store.
+ * this to stellar-wallets-kit's `signTransaction`. Injected so this module has
+ * no direct dependency on the wallet UI/store.
  */
 export type SignXdr = (xdr: string) => Promise<string>;
 
-/** How many schedule ids to probe when building a snapshot (see getSnapshot). */
-const MAX_SCHEDULE_SCAN = 50;
+/** How many contiguous schedule ids to probe (ids are monotonic from 1). */
+const MAX_SCHEDULE_SCAN = 100;
+/** SAC scale: XLM (and every current SAC) uses 7 decimals. */
+const SCALE = 10_000_000;
+/** Ledgers to backfill when no persisted cursor is available (~24h). */
+const EVENT_LOOKBACK_LEDGERS = 17_280;
 
 const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
-  // Testnet RPC is https; allowHttp only matters for local/standalone.
   allowHttp: SOROBAN_RPC_URL.startsWith('http://'),
 });
 
-/** The contract's on-chain Status enum is emitted as a u32 discriminant. */
+/** The contract's Status enum, by u32 discriminant. */
 const STATUS_BY_INDEX: ScheduleStatus[] = ['Active', 'Paused', 'Ended'];
 
-/**
- * Map a decoded contract `Schedule` (snake_case, i128 as bigint, Address as
- * string) into the UI's `Schedule` shape (camelCase, numbers). Amounts are kept
- * in whole units by dividing out the 7-decimal SAC scale used on-chain.
- */
+export async function withCursorRecovery<T>(
+  cursor: string | undefined,
+  fetchPage: (cursor?: string) => Promise<T>,
+): Promise<T> {
+  try {
+    return await fetchPage(cursor);
+  } catch (error) {
+    if (!cursor) throw error;
+    return fetchPage();
+  }
+}
+
+function statusIndex(raw: unknown): number {
+  if (Array.isArray(raw)) return statusIndex(raw[0]);
+  if (typeof raw === 'number' || typeof raw === 'bigint') return Number(raw);
+  if (typeof raw === 'string') {
+    const named = STATUS_BY_INDEX.indexOf(raw as ScheduleStatus);
+    return named >= 0 ? named : Number(raw);
+  }
+  const value = raw as {
+    discriminant?: number | bigint;
+    tag?: string;
+    value?: unknown;
+  };
+  if (value?.tag) return STATUS_BY_INDEX.indexOf(value.tag as ScheduleStatus);
+  if (value?.discriminant !== undefined) return Number(value.discriminant);
+  if (value?.value !== undefined) return statusIndex(value.value);
+  return 0;
+}
+
+const toWhole = (v: unknown): number =>
+  Number(typeof v === 'bigint' ? v : BigInt(String(v ?? 0))) / SCALE;
+const toInt = (v: unknown): number => Number(typeof v === 'bigint' ? v : BigInt(String(v ?? 0)));
+
+/** Map a decoded contract `Schedule` (snake_case) into the UI `Schedule` shape. */
 function decodeSchedule(id: string, raw: Record<string, unknown>): Schedule {
-  const scale = 10_000_000; // 7 decimals
-  const toNum = (v: unknown): number => Number(typeof v === 'bigint' ? v : BigInt(String(v ?? 0)));
-  const statusIdx =
-    typeof raw.status === 'number' ? raw.status : Number((raw.status as { discriminant?: number })?.discriminant ?? 0);
+  const statusIdx = statusIndex(raw.status);
   return {
     id,
-    label: '', // labels live only in the UI; contract does not store them.
+    label: '', // labels are UI-only; the contract doesn't store them.
     sender: String(raw.sender),
     recipient: String(raw.recipient),
-    amount: toNum(raw.amount) / scale,
-    asset: String(raw.asset),
-    cadenceSecs: toNum(raw.cadence_secs),
-    totalCount: toNum(raw.total_count),
-    paidCount: toNum(raw.paid_count),
-    lastPaidTs: toNum(raw.last_paid_ts),
-    deposit: toNum(raw.deposit) / scale,
+    amount: toWhole(raw.amount),
+    asset: assetLabel(String(raw.asset)),
+    cadenceSecs: toInt(raw.cadence_secs),
+    totalCount: toInt(raw.total_count),
+    paidCount: toInt(raw.paid_count),
+    lastPaidTs: toInt(raw.last_paid_ts),
+    deposit: toWhole(raw.deposit),
     status: STATUS_BY_INDEX[statusIdx] ?? 'Active',
-    createdTs: toNum(raw.created_ts),
+    createdTs: toInt(raw.created_ts),
   };
+}
+
+/** Decode a raw RPC event into a UI StreamEvent (or null for unknown topics). */
+function decodeEvent(ev: SorobanRpc.Api.EventResponse): StreamEvent | null {
+  const topics = ev.topic.map((t) => scValToNative(t));
+  const kind = String(topics[0]);
+  const scheduleId = String(topics[1] ?? '');
+  const data = (scValToNative(ev.value) ?? {}) as Record<string, unknown>;
+  const ts = Math.floor(new Date(ev.ledgerClosedAt).getTime() / 1000);
+  const base = { id: ev.id, scheduleId, txHash: ev.txHash, ts, asset: 'XLM' };
+
+  switch (kind) {
+    case 'created':
+      return { ...base, type: 'created' };
+    case 'payment':
+      return { ...base, type: 'payment', amount: toWhole(data.amount) };
+    case 'deposit':
+      return { ...base, type: 'deposit', amount: toWhole(data.amount) };
+    case 'cancel':
+      return { ...base, type: 'cancel', amount: toWhole(data.refund) };
+    case 'status': {
+      const status = statusIndex(data.status);
+      return { ...base, type: status === 1 ? 'pause' : 'resume' };
+    }
+    default:
+      return null;
+  }
 }
 
 /** i128 whole-unit amount -> scaled ScVal the contract expects. */
 function amountToScVal(whole: number): xdr.ScVal {
-  const scaled = BigInt(Math.round(whole * 10_000_000));
-  return nativeToScVal(scaled, { type: 'i128' });
+  return nativeToScVal(BigInt(Math.round(whole * SCALE)), { type: 'i128' });
 }
+
+const scheduleIdArg = (id: string | number): xdr.ScVal =>
+  nativeToScVal(BigInt(id), { type: 'u64' });
 
 class SorobanClient implements ContractClient {
   private contract = new Contract(CONTRACT_ID);
@@ -90,12 +152,12 @@ class SorobanClient implements ContractClient {
   ) {}
 
   /**
-   * Read-only invocation via simulation. No signing or submission — we only
-   * need the simulated return value. Used by get_schedule.
+   * Read-only invocation via simulation. No wallet required — we build the tx
+   * from a throwaway source account (simulation ignores its sequence/balance).
    */
   private async simulateRead(method: string, ...args: xdr.ScVal[]): Promise<unknown> {
-    const account = await server.getAccount(this.requireSender());
-    const tx = new TransactionBuilder(account, {
+    const source = new Account(Keypair.random().publicKey(), '0');
+    const tx = new TransactionBuilder(source, {
       fee: BASE_FEE,
       networkPassphrase: NETWORK_PASSPHRASE,
     })
@@ -107,17 +169,19 @@ class SorobanClient implements ContractClient {
     if (SorobanRpc.Api.isSimulationError(sim)) {
       throw new Error(`Simulation failed for ${method}: ${sim.error}`);
     }
-    // REVIEW: retval shape is stable in v12; scValToNative decodes the struct.
     const retval = sim.result?.retval;
     return retval ? scValToNative(retval) : undefined;
   }
 
   /**
    * Mutating invocation: build -> prepare (simulate + assemble) -> sign via
-   * wallet -> submit -> poll to completion. Throws on any failed status so the
-   * store surfaces the same error UX as the mock path.
+   * wallet -> submit -> poll to completion. Throws on any failed status.
    */
-  private async invokeSigned(method: string, ...args: xdr.ScVal[]): Promise<unknown> {
+  private async invokeSigned(
+    method: string,
+    args: xdr.ScVal[],
+    progress?: TransactionProgress,
+  ): Promise<TransactionReceipt> {
     const source = this.requireSender();
     const account = await server.getAccount(source);
     const built = new TransactionBuilder(account, {
@@ -128,28 +192,31 @@ class SorobanClient implements ContractClient {
       .setTimeout(30)
       .build();
 
-    // prepareTransaction simulates and attaches the Soroban resource footprint
-    // + fees. Required before signing any contract invocation.
+    // Simulate + attach the Soroban resource footprint/fees before signing.
     const prepared = await server.prepareTransaction(built);
-
+    progress?.('awaiting_signature');
     const signedXdr = await this.sign(prepared.toXDR());
     const signedTx = TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE);
 
+    progress?.('submitting');
     const sent = await server.sendTransaction(signedTx);
-    if (sent.status === 'ERROR') {
+    if (sent.status === 'ERROR' || sent.status === 'TRY_AGAIN_LATER') {
       throw new Error(`Submit failed for ${method}: ${JSON.stringify(sent.errorResult)}`);
     }
+    progress?.('pending', sent.hash);
 
-    // Poll until the tx leaves PENDING.
     let got = await server.getTransaction(sent.hash);
-    for (let i = 0; i < 10 && got.status === SorobanRpc.Api.GetTransactionStatus.NOT_FOUND; i += 1) {
+    for (let i = 0; i < 15 && got.status === SorobanRpc.Api.GetTransactionStatus.NOT_FOUND; i += 1) {
       await new Promise((r) => setTimeout(r, 1000));
       got = await server.getTransaction(sent.hash);
     }
     if (got.status !== SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
       throw new Error(`Tx ${sent.hash} ended ${got.status}`);
     }
-    return got.returnValue ? scValToNative(got.returnValue) : undefined;
+    return {
+      hash: sent.hash,
+      value: got.returnValue ? scValToNative(got.returnValue) : undefined,
+    };
   }
 
   private requireSender(): string {
@@ -158,59 +225,96 @@ class SorobanClient implements ContractClient {
     return s;
   }
 
-  async getSnapshot(): Promise<StreamSnapshot> {
-    // The contract has no enumerate-all function (that would be an unbounded
-    // on-chain scan). We probe ids 1..MAX and keep the ones that resolve. A
-    // production build would replace this with an indexer / event backfill.
+  /** Probe contiguous schedule ids until the first miss (ids never have gaps). */
+  private async probeSchedules(): Promise<Schedule[]> {
     const schedules: Schedule[] = [];
     for (let id = 1; id <= MAX_SCHEDULE_SCAN; id += 1) {
       try {
-        const raw = (await this.simulateRead('get_schedule', nativeToScVal(id, { type: 'u64' }))) as
+        const raw = (await this.simulateRead('get_schedule', scheduleIdArg(id))) as
           | Record<string, unknown>
           | undefined;
-        if (raw) schedules.push(decodeSchedule(String(id), raw));
+        if (!raw) break;
+        schedules.push(decodeSchedule(String(id), raw));
       } catch {
-        // ScheduleNotFound (or a gap) — stop scanning at the first miss past 1.
-        if (schedules.length > 0) break;
+        break; // ScheduleNotFound — no higher ids exist.
       }
     }
-    // REVIEW: event backfill via server.getEvents requires a start ledger and
-    // contract-id topic filter; wire this to the same query the watcher uses.
-    const events: StreamEvent[] = [];
-    return { schedules, events };
+    return schedules;
   }
 
-  async initSchedule(input: CreateScheduleInput, sender: string): Promise<string> {
-    const ret = await this.invokeSigned(
+  /** Fetch events after a cursor, or backfill recent ledgers when no cursor is usable. */
+  async getEvents(cursor?: string): Promise<EventPage> {
+    const fetchPage = async (after?: string) => {
+      const request: SorobanRpc.Server.GetEventsRequest = {
+        filters: [{ type: 'contract', contractIds: [CONTRACT_ID] }],
+        limit: 100,
+      };
+      if (after) request.cursor = after;
+      else {
+      const { sequence } = await server.getLatestLedger();
+        request.startLedger = Math.max(1, sequence - EVENT_LOOKBACK_LEDGERS);
+      }
+      const res = await server.getEvents(request);
+      const events = res.events
+        .map(decodeEvent)
+        .filter((e): e is StreamEvent => e !== null)
+        .reverse();
+      return { events, cursor: res.events.at(-1)?.pagingToken ?? after };
+    };
+
+    return withCursorRecovery(cursor, fetchPage);
+  }
+
+  async getSnapshot(): Promise<StreamSnapshot> {
+    const [schedules, page] = await Promise.all([this.probeSchedules(), this.getEvents()]);
+    return { schedules, events: page.events };
+  }
+
+  async initSchedule(
+    input: CreateScheduleInput,
+    sender: string,
+    progress?: TransactionProgress,
+  ): Promise<TransactionReceipt<string>> {
+    const receipt = await this.invokeSigned(
       'init_schedule',
-      new Address(sender).toScVal(),
-      new Address(input.recipient).toScVal(),
-      amountToScVal(input.amount),
-      new Address(input.asset).toScVal(),
-      nativeToScVal(BigInt(input.cadenceSecs), { type: 'u64' }),
-      nativeToScVal(input.totalCount, { type: 'u32' }),
+      [
+        new Address(sender).toScVal(),
+        new Address(input.recipient).toScVal(),
+        amountToScVal(input.amount),
+        new Address(assetAddress(input.asset)).toScVal(),
+        nativeToScVal(BigInt(input.cadenceSecs), { type: 'u64' }),
+        nativeToScVal(input.totalCount, { type: 'u32' }),
+      ],
+      progress,
     );
-    return String(ret);
+    const id = String(receipt.value);
+    // The contract creates the schedule with an empty escrow; fund it now so
+    // live mode matches the mock's "initial deposit" semantics.
+    if (input.initialDeposit > 0) {
+      const deposit = await this.deposit(id, input.initialDeposit, progress);
+      return { hash: deposit.hash, value: id };
+    }
+    return { hash: receipt.hash, value: id };
   }
 
-  async deposit(id: string, amount: number): Promise<void> {
-    await this.invokeSigned('deposit', nativeToScVal(BigInt(id), { type: 'u64' }), amountToScVal(amount));
+  async deposit(id: string, amount: number, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    return this.invokeSigned('deposit', [scheduleIdArg(id), amountToScVal(amount)], progress);
   }
 
-  async payNext(id: string): Promise<void> {
-    await this.invokeSigned('pay_next', nativeToScVal(BigInt(id), { type: 'u64' }));
+  async payNext(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    return this.invokeSigned('pay_next', [scheduleIdArg(id)], progress);
   }
 
-  async pause(id: string): Promise<void> {
-    await this.invokeSigned('pause', nativeToScVal(BigInt(id), { type: 'u64' }));
+  async pause(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    return this.invokeSigned('pause', [scheduleIdArg(id)], progress);
   }
 
-  async resume(id: string): Promise<void> {
-    await this.invokeSigned('resume', nativeToScVal(BigInt(id), { type: 'u64' }));
+  async resume(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    return this.invokeSigned('resume', [scheduleIdArg(id)], progress);
   }
 
-  async cancel(id: string): Promise<void> {
-    await this.invokeSigned('cancel', nativeToScVal(BigInt(id), { type: 'u64' }));
+  async cancel(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    return this.invokeSigned('cancel', [scheduleIdArg(id)], progress);
   }
 }
 
@@ -218,3 +322,6 @@ class SorobanClient implements ContractClient {
 export function makeSorobanClient(sender: () => string | null, sign: SignXdr): ContractClient {
   return new SorobanClient(sender, sign);
 }
+
+// Exported for unit tests (pure decoders, no network).
+export const __test = { decodeSchedule, decodeEvent, amountToScVal, statusIndex };

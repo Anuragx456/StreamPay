@@ -26,7 +26,7 @@ export function ThemeToggle() {
       }}
       aria-label={label}
       title={label}
-      className="grid h-9 w-9 place-items-center rounded-pill border border-line text-muted transition-colors hover:border-lineStrong hover:text-ink"
+      className="grid h-11 w-11 place-items-center rounded-pill border border-line text-muted transition-colors hover:border-lineStrong hover:text-ink"
     >
       {isDark ? <IconMoon className="h-4 w-4" /> : <IconSun className="h-4 w-4" />}
     </button>

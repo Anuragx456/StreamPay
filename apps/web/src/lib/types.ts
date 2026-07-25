@@ -54,3 +54,29 @@ export interface CreateScheduleInput {
   totalCount: number;
   initialDeposit: number;
 }
+
+export interface TransactionReceipt<T = unknown> {
+  hash: string;
+  value: T;
+}
+
+export type TransactionState =
+  | 'idle'
+  | 'awaiting_signature'
+  | 'submitting'
+  | 'pending'
+  | 'success'
+  | 'failed';
+
+export interface TransactionFeedback {
+  state: TransactionState;
+  hash?: string;
+  message?: string;
+}
+
+export type TransactionProgress = (state: TransactionState, hash?: string) => void;
+
+export interface EventPage {
+  events: StreamEvent[];
+  cursor?: string;
+}

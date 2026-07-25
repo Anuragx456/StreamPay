@@ -60,7 +60,7 @@ export function Streams() {
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className={`-mb-px flex items-center gap-1.5 border-b pb-2.5 text-sm transition-colors ${
+              className={`-mb-px flex min-h-11 items-center gap-1.5 border-b pb-2.5 text-sm transition-colors ${
                 isActive
                   ? 'border-[color:var(--active-nav)] font-medium text-[color:var(--active-nav)]'
                   : 'border-transparent text-muted hover:text-ink'

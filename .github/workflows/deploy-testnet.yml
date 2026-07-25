@@ -1,0 +1,65 @@
+name: Deploy contract and web to Testnet
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+      - run: npm run contract:test
+      - run: cargo install --locked stellar-cli
+      - run: npm run contract:build
+
+      - name: Deploy subscription contract
+        id: contract
+        env:
+          STELLAR_DEPLOYER_SECRET: ${{ secrets.STELLAR_DEPLOYER_SECRET }}
+        run: |
+          contract_id=$(stellar contract deploy \
+            --wasm contracts/subscription/target/wasm32v1-none/release/streampay_subscription.wasm \
+            --source "$STELLAR_DEPLOYER_SECRET" \
+            --network testnet)
+          echo "contract_id=$contract_id" >> "$GITHUB_OUTPUT"
+
+      - name: Verify contract interface
+        run: stellar contract info interface --contract-id "${{ steps.contract.outputs.contract_id }}" --network testnet
+
+      - name: Deploy production web app
+        id: web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VITE_CONTRACT_ID: ${{ steps.contract.outputs.contract_id }}
+          VITE_NETWORK: TESTNET
+          VITE_NETWORK_PASSPHRASE: Test SDF Network ; September 2015
+          VITE_HORIZON_URL: https://horizon-testnet.stellar.org
+          VITE_SOROBAN_RPC_URL: https://soroban-testnet.stellar.org
+        run: |
+          npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+          web_url=$(npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "web_url=$web_url" >> "$GITHUB_OUTPUT"
+
+      - name: Deployment summary
+        run: |
+          echo "## StreamPay Testnet deployment" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Contract ID: `%s`\n' '${{ steps.contract.outputs.contract_id }}' >> "$GITHUB_STEP_SUMMARY"
+          echo "[Open in Stellar Expert](https://stellar.expert/explorer/testnet/contract/${{ steps.contract.outputs.contract_id }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Open StreamPay](${{ steps.web.outputs.web_url }})" >> "$GITHUB_STEP_SUMMARY"

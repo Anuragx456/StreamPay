@@ -8,6 +8,8 @@ import type {
   Schedule,
   ScheduleStatus,
   StreamEvent,
+  TransactionProgress,
+  TransactionReceipt,
 } from './types';
 import { seedEvents, seedSchedules } from './mockData';
 
@@ -54,7 +56,25 @@ export class MockClient {
     });
   }
 
-  async initSchedule(input: CreateScheduleInput, sender: string): Promise<string> {
+  async getEvents(cursor?: string) {
+    const index = cursor ? this.events.findIndex((event) => event.id === cursor) : -1;
+    const events = cursor && index >= 0 ? this.events.slice(0, index) : this.events;
+    return delay({ events: events.map((event) => ({ ...event })), cursor: this.events[0]?.id });
+  }
+
+  private async receipt<T>(value: T, progress?: TransactionProgress): Promise<TransactionReceipt<T>> {
+    const hash = fakeTxHash();
+    progress?.('awaiting_signature');
+    progress?.('submitting');
+    progress?.('pending', hash);
+    return { hash, value };
+  }
+
+  async initSchedule(
+    input: CreateScheduleInput,
+    sender: string,
+    progress?: TransactionProgress,
+  ): Promise<TransactionReceipt<string>> {
     const id = String(this.nextId);
     this.nextId += 1;
     const schedule: Schedule = {
@@ -74,14 +94,16 @@ export class MockClient {
     };
     this.schedules = [schedule, ...this.schedules];
     this.pushEvent({ type: 'created', scheduleId: id });
-    return delay(id);
+    await delay(null);
+    return this.receipt(id, progress);
   }
 
-  async deposit(id: string, amount: number): Promise<void> {
+  async deposit(id: string, amount: number, progress?: TransactionProgress): Promise<TransactionReceipt> {
     const s = this.mustGet(id);
     s.deposit += amount;
     this.pushEvent({ type: 'deposit', scheduleId: id, amount, asset: s.asset });
     await delay(null);
+    return this.receipt(undefined, progress);
   }
 
   /**
@@ -89,7 +111,7 @@ export class MockClient {
    * sufficiency, and installment cap before disbursing. Throws on violation so
    * the UI can surface the same errors the contract would.
    */
-  async payNext(id: string): Promise<void> {
+  async payNext(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
     const s = this.mustGet(id);
     if (s.status !== 'Active') throw new Error(`Stream is ${s.status.toLowerCase()}, cannot pay`);
     if (s.paidCount >= s.totalCount) throw new Error('All installments already paid');
@@ -106,6 +128,7 @@ export class MockClient {
     if (s.paidCount >= s.totalCount) s.status = 'Ended';
     this.pushEvent({ type: 'payment', scheduleId: id, amount: s.amount, asset: s.asset });
     await delay(null);
+    return this.receipt(undefined, progress);
   }
 
   private setStatus(id: string, status: ScheduleStatus, type: StreamEvent['type']): void {
@@ -114,23 +137,26 @@ export class MockClient {
     this.pushEvent({ type, scheduleId: id });
   }
 
-  async pause(id: string): Promise<void> {
+  async pause(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
     this.setStatus(id, 'Paused', 'pause');
     await delay(null);
+    return this.receipt(undefined, progress);
   }
 
-  async resume(id: string): Promise<void> {
+  async resume(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
     this.setStatus(id, 'Active', 'resume');
     await delay(null);
+    return this.receipt(undefined, progress);
   }
 
-  async cancel(id: string): Promise<void> {
+  async cancel(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
     const s = this.mustGet(id);
     const refund = s.deposit;
     s.deposit = 0;
     s.status = 'Ended';
     this.pushEvent({ type: 'cancel', scheduleId: id, amount: refund, asset: s.asset });
     await delay(null);
+    return this.receipt(undefined, progress);
   }
 
   private mustGet(id: string): Schedule {

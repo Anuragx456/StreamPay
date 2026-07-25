@@ -56,9 +56,19 @@ afterEach(() => {
 });
 
 describe('MockClient.initSchedule', () => {
+  it('reports transaction states and returns a hash/value receipt', async () => {
+    const client = new MockClient();
+    const states: string[] = [];
+    const receipt = await run(client.initSchedule(baseInput(), SENDER, (state) => states.push(state)));
+
+    expect(states).toEqual(['awaiting_signature', 'submitting', 'pending']);
+    expect(receipt.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(receipt.value).toBeTruthy();
+  });
+
   it('creates an active schedule with the initial deposit escrowed', async () => {
     const client = new MockClient();
-    const id = await run(client.initSchedule(baseInput(), SENDER));
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
 
     const { schedules } = await run(client.getSnapshot());
     const created = schedules.find((s) => s.id === id);
@@ -73,7 +83,7 @@ describe('MockClient.initSchedule', () => {
 
   it('emits a "created" event for the new schedule', async () => {
     const client = new MockClient();
-    const id = await run(client.initSchedule(baseInput(), SENDER));
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
 
     const { events } = await run(client.getSnapshot());
     expect(events.some((e) => e.type === 'created' && e.scheduleId === id)).toBe(true);
@@ -83,7 +93,7 @@ describe('MockClient.initSchedule', () => {
 describe('MockClient.deposit', () => {
   it('adds to the escrow balance', async () => {
     const client = new MockClient();
-    const id = await run(client.initSchedule(baseInput({ initialDeposit: 0 }), SENDER));
+    const { value: id } = await run(client.initSchedule(baseInput({ initialDeposit: 0 }), SENDER));
 
     await run(client.deposit(id, 50));
 
@@ -95,7 +105,7 @@ describe('MockClient.deposit', () => {
 describe('MockClient.payNext timing guard', () => {
   it('rejects a payment before one cadence has elapsed', async () => {
     const client = new MockClient();
-    const id = await run(client.initSchedule(baseInput(), SENDER));
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
 
     // created_ts == now (0). Nothing is due yet.
     await expectReject(client.payNext(id), /not yet due/i);
@@ -103,7 +113,7 @@ describe('MockClient.payNext timing guard', () => {
 
   it('allows exactly one payment per elapsed cadence', async () => {
     const client = new MockClient();
-    const id = await run(client.initSchedule(baseInput(), SENDER));
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
 
     // Advance one week: now due.
     vi.setSystemTime(7 * DAY);
@@ -125,7 +135,7 @@ describe('MockClient.payNext timing guard', () => {
 
   it('rejects payment when escrow is insufficient even if due', async () => {
     const client = new MockClient();
-    const id = await run(client.initSchedule(baseInput({ initialDeposit: 0 }), SENDER));
+    const { value: id } = await run(client.initSchedule(baseInput({ initialDeposit: 0 }), SENDER));
 
     vi.setSystemTime(7 * DAY);
     await expectReject(client.payNext(id), /insufficient/i);
@@ -135,7 +145,7 @@ describe('MockClient.payNext timing guard', () => {
 describe('MockClient full payout', () => {
   it('marks the schedule Ended after the final installment', async () => {
     const client = new MockClient();
-    const id = await run(client.initSchedule(baseInput({ totalCount: 3, initialDeposit: 30 }), SENDER));
+    const { value: id } = await run(client.initSchedule(baseInput({ totalCount: 3, initialDeposit: 30 }), SENDER));
 
     for (let week = 1; week <= 3; week += 1) {
       vi.setSystemTime(week * 7 * DAY);
@@ -157,7 +167,7 @@ describe('MockClient full payout', () => {
 describe('MockClient.cancel', () => {
   it('ends the schedule and records the refunded remainder', async () => {
     const client = new MockClient();
-    const id = await run(client.initSchedule(baseInput({ initialDeposit: 30 }), SENDER));
+    const { value: id } = await run(client.initSchedule(baseInput({ initialDeposit: 30 }), SENDER));
 
     await run(client.cancel(id));
 

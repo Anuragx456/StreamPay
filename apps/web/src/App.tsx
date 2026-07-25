@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Sidebar } from '@/components/Sidebar';
 import { Topbar } from '@/components/Topbar';
@@ -10,6 +10,7 @@ import { Send } from '@/views/Send';
 import { Activity } from '@/views/Activity';
 import { Architecture } from '@/views/Architecture';
 import { Landing } from '@/views/Landing';
+import { useStreamsStore } from '@/store/streams';
 
 /**
  * App shell: a persistent Sidebar + Topbar around the routed page content.
@@ -18,6 +19,13 @@ import { Landing } from '@/views/Landing';
  */
 function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const startEventSync = useStreamsStore((state) => state.startEventSync);
+  const stopEventSync = useStreamsStore((state) => state.stopEventSync);
+
+  useEffect(() => {
+    startEventSync();
+    return stopEventSync;
+  }, [startEventSync, stopEventSync]);
 
   return (
     <div className="flex min-h-screen">

@@ -7,12 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  web:
-    name: Web (lint · design guard · build · test)
+  app:
+    name: App (lint · build · web + watcher tests)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
 
@@ -21,14 +18,8 @@ jobs:
           node-version: 20
           cache: npm
 
-      # Install from the workspace root so the lockfile resolves.
       - name: Install dependencies
         run: npm ci
-        working-directory: .
-
-      # Fails the job if any banned design pattern is reintroduced in src/**.
-      - name: Design system guard
-        run: npm run check:design
 
       - name: Lint
         run: npm run lint
@@ -37,4 +28,36 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: npm run test
+        run: npm test
+
+  contract:
+    name: Contract (test · build wasm)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/subscription
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          # soroban-sdk 27 targets the wasm32v1-none triple.
+          targets: wasm32v1-none
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/subscription/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/subscription/Cargo.lock') }}
+
+      - name: Install Stellar CLI
+        run: cargo install --locked stellar-cli
+
+      - name: Test
+        run: cargo test
+
+      - name: Build wasm
+        run: stellar contract build

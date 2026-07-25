@@ -23,7 +23,7 @@ const FILTERS: { key: EventType | 'all'; label: string }[] = [
  * pay_next / top-up / cancel anywhere shows up here immediately after refresh.
  */
 export function Activity() {
-  const { events, loading, loaded, refresh } = useStreamsStore();
+  const { events, loading, loaded, refresh, syncLoading, syncError, lastSync } = useStreamsStore();
   const [filter, setFilter] = useState<EventType | 'all'>('all');
 
   useEffect(() => {
@@ -50,6 +50,11 @@ export function Activity() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3 text-xs text-muted" role="status">
+        <span>{syncLoading ? 'Syncing on-chain events…' : syncError ? `Sync error: ${syncError}` : 'Live event sync active'}</span>
+        <span>{lastSync ? `Last sync ${new Date(lastSync).toLocaleTimeString()}` : 'Waiting for first sync'}</span>
+      </div>
+
       {/* Type filter — hairline segmented row, mono labels. */}
       <div className="flex flex-wrap gap-1.5">
         {FILTERS.map((f) => {
@@ -60,7 +65,7 @@ export function Activity() {
               type="button"
               onClick={() => setFilter(f.key)}
               aria-pressed={active}
-              className={`rounded-sm border px-3 py-1.5 font-mono text-[0.7rem] uppercase tracking-[0.12em] transition-colors ${
+              className={`min-h-11 rounded-sm border px-3 py-1.5 font-mono text-[0.7rem] uppercase tracking-[0.12em] transition-colors ${
                 active
                   ? 'border-lineStrong text-ink'
                   : 'border-line text-muted hover:text-ink'
@@ -89,8 +94,8 @@ export function Activity() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-md border border-line">
-          <table className="w-full">
+        <div className="overflow-x-auto rounded-md border border-line">
+          <table className="w-full min-w-[42rem]">
             <thead>
               <tr className="border-b border-line text-left font-mono text-[0.65rem] uppercase tracking-[0.14em] text-faint">
                 <th className="px-4 py-3 font-normal">Event</th>
