@@ -1,71 +1,71 @@
-// Real wallet integration via @creit.tech/stellar-wallets-kit (v1.9).
+// Real wallet integration via @creit.tech/stellar-wallets-kit (v2.5).
 //
-// This module owns a single StellarWalletsKit instance and exposes thin async
-// helpers the wallet store calls. It replaces the previous mock connect/sign.
-// The kit renders its own wallet-selector modal (openModal), so the UI just
-// asks it to open and hands back the chosen address.
+// This module owns the StellarWalletsKit static API and exposes thin async
+// helpers the wallet store calls. The kit renders its own auth modal with a
+// wallet-selector UI, so the app just asks it to open and hands back the
+// chosen address.
 //
-// Freighter + Lobstr are wired explicitly; both target Stellar Testnet by
-// default (see VITE_NETWORK / NETWORK_PASSPHRASE).
+// All 12 Stellar wallets are supported via defaultModules() — Albedo,
+// Freighter, Lobstr, Rabet, xBull, Hana, Klever, OneKey, Bitget, Fordefi,
+// CactusLink, and Dcent. The kit's built-in auth modal handles selection,
+// installation prompts, and availability checks.
 
-import {
-  StellarWalletsKit,
-  WalletNetwork,
-  FreighterModule,
-  LobstrModule,
-  FREIGHTER_ID,
-  type ISupportedWallet,
-} from '@creit.tech/stellar-wallets-kit';
-import { NETWORK, NETWORK_PASSPHRASE } from './constants';
+import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit/sdk';
+import { SwkAppDarkTheme, KitEventType, Networks } from '@creit.tech/stellar-wallets-kit/types';
+import { defaultModules } from '@creit.tech/stellar-wallets-kit/modules/utils';
+import { NETWORK_PASSPHRASE } from './constants';
 
-/** Map our VITE_NETWORK label to the kit's WalletNetwork enum. */
-function resolveNetwork(): WalletNetwork {
-  if (NETWORK.toUpperCase() === 'PUBLIC') return WalletNetwork.PUBLIC;
-  // Default to testnet for Level 1.
-  return WalletNetwork.TESTNET;
+// ---------------------------------------------------------------------------
+// Module-level state
+// ---------------------------------------------------------------------------
+
+let initialized = false;
+/** Last wallet id captured from the WALLET_SELECTED event during auth. */
+let lastWalletId: string | null = null;
+/** Map our NETWORK_PASSPHRASE to the kit's Networks enum. */
+function resolveNetwork(): Networks {
+  if (NETWORK_PASSPHRASE.includes('Public Global Stellar Network')) return Networks.PUBLIC;
+  return Networks.TESTNET;
 }
 
-let kit: StellarWalletsKit | null = null;
-
-/** Lazily build the singleton kit (Freighter default, Lobstr available). */
-function getKit(): StellarWalletsKit {
-  if (kit) return kit;
-  kit = new StellarWalletsKit({
+/** One-time lazy init (safe under HMR due to the flag guard). */
+function ensureInit(): void {
+  if (initialized) return;
+  StellarWalletsKit.init({
+    modules: defaultModules(),
     network: resolveNetwork(),
-    selectedWalletId: FREIGHTER_ID,
-    modules: [new FreighterModule(), new LobstrModule()],
+    theme: SwkAppDarkTheme,
   });
-  return kit;
+  // Track which wallet the user picks so openWalletModal can return a walletId.
+  StellarWalletsKit.on(
+    KitEventType.WALLET_SELECTED,
+    (event) => {
+      lastWalletId = event.payload.id ?? null;
+    },
+  );
+  initialized = true;
 }
+
+// ---------------------------------------------------------------------------
+// Public API — all 5 exports preserve their v1 signatures so no caller changes
+// are needed (store/wallet.ts, stellar.ts, sorobanClient.ts).
+// ---------------------------------------------------------------------------
 
 /**
- * Open the kit's wallet-selector modal and resolve with the connected address.
- * Resolves to null if the user closes the modal without picking a wallet.
+ * Open the kit's built-in auth modal and resolve with the connected address.
+ * Resolves to null if the user closes the modal without connecting a wallet.
  * Throws if the selected wallet errors (e.g. Freighter locked or access denied).
  */
 export async function openWalletModal(): Promise<{ address: string; walletId: string } | null> {
-  const k = getKit();
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    void k.openModal({
-      modalTitle: 'Connect a wallet',
-      onWalletSelected: async (option: ISupportedWallet) => {
-        try {
-          k.setWallet(option.id);
-          const { address } = await k.getAddress();
-          settled = true;
-          resolve({ address, walletId: option.id });
-        } catch (err) {
-          settled = true;
-          reject(err instanceof Error ? err : new Error(String(err)));
-        }
-      },
-      onClosed: () => {
-        // Fires on backdrop/X close. Only resolve null if no wallet was picked.
-        if (!settled) resolve(null);
-      },
-    });
-  });
+  ensureInit();
+  try {
+    const { address } = await StellarWalletsKit.authModal();
+    if (!address) return null;
+    return { address, walletId: lastWalletId ?? 'freighter' };
+  } catch {
+    // User closed the modal or wallet access was denied.
+    return null;
+  }
 }
 
 /**
@@ -73,16 +73,20 @@ export async function openWalletModal(): Promise<{ address: string; walletId: st
  * The wallet store injects this into the Soroban client's `signXdr` seam.
  */
 export async function signTransactionXdr(xdr: string): Promise<string> {
-  const k = getKit();
-  const { signedTxXdr } = await k.signTransaction(xdr, {
+  ensureInit();
+  // v2 requires the connected address — resolve it from the kit's in-memory state.
+  const { address } = await StellarWalletsKit.getAddress();
+  const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
     networkPassphrase: NETWORK_PASSPHRASE,
+    address,
   });
   return signedTxXdr;
 }
 
 /** Reselect a previously-connected wallet id (e.g. after a reload). */
 export function selectWallet(walletId: string): void {
-  getKit().setWallet(walletId);
+  ensureInit();
+  StellarWalletsKit.setWallet(walletId);
 }
 
 /**
@@ -91,8 +95,9 @@ export function selectWallet(walletId: string): void {
  * restore a persisted session on load.
  */
 export async function getKitAddress(): Promise<string | null> {
+  ensureInit();
   try {
-    const { address } = await getKit().getAddress({ skipRequestAccess: true });
+    const { address } = await StellarWalletsKit.getAddress();
     return address || null;
   } catch {
     return null;
@@ -101,10 +106,11 @@ export async function getKitAddress(): Promise<string | null> {
 
 /** Tear down the kit's connection (WalletConnect sessions, stored address). */
 export async function disconnectWallet(): Promise<void> {
-  if (!kit) return;
+  if (!initialized) return;
   try {
-    await kit.disconnect();
+    await StellarWalletsKit.disconnect();
   } catch {
     // Best-effort: some modules have no session to tear down.
   }
+  lastWalletId = null;
 }
