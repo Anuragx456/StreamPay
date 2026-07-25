@@ -53,6 +53,9 @@ jobs:
             contracts/subscription/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/subscription/Cargo.lock') }}
 
+      - name: Install system dependencies (libdbus for stellar-cli)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: Install Stellar CLI
         run: cargo install --locked stellar-cli
 
