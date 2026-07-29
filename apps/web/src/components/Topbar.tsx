@@ -41,19 +41,22 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
       <ThemeToggle />
 
       {publicKey ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="chip hidden sm:inline-flex" title={publicKey}>
             <span className="h-1.5 w-1.5 rounded-pill" style={{ background: 'var(--accent-2)' }} />
             <span className="font-mono">{truncateKey(publicKey)}</span>
-            {walletId && <span className="text-faint">· {walletId}</span>}
+            <span className="text-faint">
+              · {walletId ? (walletId.toLowerCase() === 'freighter' ? 'Freighter' : walletId) : 'Freighter'}
+            </span>
           </span>
-          <span className="chip hidden md:inline-flex" title="Native XLM balance (testnet)">
+          <span className="chip hidden md:inline-flex" title="Native XLM balance on Stellar Testnet">
+            <span className="text-muted mr-1">XLM Balance:</span>
             {balanceLoading ? (
               <span className="text-faint">loading…</span>
             ) : balance === null ? (
               <span className="text-faint">—</span>
             ) : funded ? (
-              <span className="font-mono">{formatAmount(balance, 'XLM')}</span>
+              <span className="font-mono font-semibold text-ink">{formatAmount(balance, 'XLM')}</span>
             ) : (
               <span className="text-faint">unfunded</span>
             )}
@@ -70,7 +73,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
           className="btn-primary disabled:opacity-50"
         >
           <IconWallet className="h-4 w-4" />
-          {connecting ? 'Connecting…' : 'Connect wallet'}
+          {connecting ? 'Connecting…' : 'Connect Wallet (Freighter)'}
         </button>
       )}
     </header>
