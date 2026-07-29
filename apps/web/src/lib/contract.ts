@@ -29,6 +29,33 @@ export interface ContractClient {
 }
 
 /**
+ * Returned when mock mode is off but no wallet is connected — gives the UI
+ * empty data for reads and a clear error on mutations instead of crashing.
+ */
+const nullClient: ContractClient = {
+  getSnapshot: async () => ({ schedules: [], events: [] }),
+  getEvents: async () => ({ events: [], cursor: undefined }),
+  initSchedule: async () => {
+    throw new Error('Connect a wallet to create streams.');
+  },
+  deposit: async () => {
+    throw new Error('Connect a wallet to manage streams.');
+  },
+  payNext: async () => {
+    throw new Error('Connect a wallet to manage streams.');
+  },
+  pause: async () => {
+    throw new Error('Connect a wallet to manage streams.');
+  },
+  resume: async () => {
+    throw new Error('Connect a wallet to manage streams.');
+  },
+  cancel: async () => {
+    throw new Error('Connect a wallet to manage streams.');
+  },
+};
+
+/**
  * Lazily-constructed real client. We build it on first use rather than at module
  * load so that (a) the mock path never imports the stellar-sdk client, and (b)
  * we can read the wallet's current key + signer from the store without a static
@@ -36,18 +63,20 @@ export interface ContractClient {
  */
 let realClient: ContractClient | null = null;
 
-/** Fresh instance each time mock mode is re-entered via the toggle. */
+/** Fresh instance each time mock mode is re-entered. */
 let mockClientInstance = new MockClient();
 
 async function getClient(): Promise<ContractClient> {
   if (useMockModeStore.getState().isMock) return mockClientInstance;
   if (realClient) return realClient;
 
-  // Dynamic imports: pulled in only in live mode.
+  // Live mode — if no wallet is available, return the null client.
   const [{ makeSorobanClient }, { useWalletStore }] = await Promise.all([
     import('./sorobanClient'),
     import('../store/wallet'),
   ]);
+
+  if (!useWalletStore.getState().publicKey) return nullClient;
 
   realClient = makeSorobanClient(
     () => useWalletStore.getState().publicKey,

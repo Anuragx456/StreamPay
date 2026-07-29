@@ -17,6 +17,9 @@ import {
   getKitAddress,
 } from '../lib/walletKit';
 import { fetchXlmBalance } from '../lib/stellar';
+import { useMockModeStore } from './mockMode';
+import { clearClientCache } from '../lib/contract';
+import { useStreamsStore } from './streams';
 import { toast } from './toast';
 import { errorMessage } from '../lib/errors';
 
@@ -51,12 +54,14 @@ interface WalletState {
   signXdr: (xdr: string) => Promise<string>;
 }
 
+const isDemoMode = typeof window !== 'undefined' && (window.location.search.includes('demo=1') || localStorage.getItem('streampay:demo') === '1');
+
 export const useWalletStore = create<WalletState>((set, get) => ({
-  publicKey: null,
-  walletId: null,
+  publicKey: isDemoMode ? 'GB2Y4P4QW5X6E7R2T3Y4U5I6O7P2A3S4D5F6G7H2J3K4L5M6N7O2P3Q4' : null,
+  walletId: isDemoMode ? 'freighter' : null,
   connecting: false,
-  balance: null,
-  funded: false,
+  balance: isDemoMode ? 10000.0 : null,
+  funded: isDemoMode ? true : false,
   balanceLoading: false,
 
   connect: async () => {
@@ -74,6 +79,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       toast.success('Wallet connected', address);
       // Fetch balance in the background.
       void get().refreshBalance();
+
+      // Auto-switch to live mode now that a wallet is connected.
+      if (useMockModeStore.getState().hasContractId) {
+        useMockModeStore.getState().setIsMock(false);
+        clearClientCache();
+        useStreamsStore.getState().reset();
+      }
     } catch (err) {
       set({ connecting: false });
       toast.error(
@@ -87,6 +99,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     await disconnectWallet();
     localStorage.removeItem(STORAGE_KEY);
     set({ publicKey: null, walletId: null, balance: null, funded: false });
+    // Re-enable mock mode so the app stays usable without a wallet.
+    useMockModeStore.getState().setIsMock(true);
+    clearClientCache();
+    useStreamsStore.getState().reset();
   },
 
   refreshBalance: async () => {
@@ -106,6 +122,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   restore: async () => {
+    if (typeof window !== 'undefined' && (window.location.search.includes('demo=1') || localStorage.getItem('streampay:demo') === '1')) {
+      set({
+        publicKey: 'GB2Y4P4QW5X6E7R2T3Y4U5I6O7P2A3S4D5F6G7H2J3K4L5M6N7O2P3Q4',
+        walletId: 'freighter',
+        balance: 10000.0,
+        funded: true,
+      });
+      return;
+    }
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return;
     try {
@@ -116,6 +141,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       if (address) {
         set({ publicKey: address, walletId: stored });
         void get().refreshBalance();
+        // A re-authorised wallet means we should go live.
+        useMockModeStore.getState().setIsMock(false);
+        clearClientCache();
+        useStreamsStore.getState().reset();
       }
     } catch {
       // Stored wallet no longer authorized — clear it silently.
@@ -125,3 +154,4 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   signXdr: (xdr) => signTransactionXdr(xdr),
 }));
+

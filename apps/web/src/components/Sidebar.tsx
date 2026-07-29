@@ -9,8 +9,7 @@ import {
   IconStreams,
 } from './icons';
 import { useMockModeStore } from '@/store/mockMode';
-import { clearClientCache } from '@/lib/contract';
-import { useStreamsStore } from '@/store/streams';
+import { useWalletStore } from '@/store/wallet';
 
 interface SidebarProps {
   /** Whether the mobile drawer is open. Ignored on desktop (always visible). */
@@ -36,15 +35,8 @@ const NAV = [
 export function Sidebar({ open, onClose }: SidebarProps) {
   const isMock = useMockModeStore((s) => s.isMock);
   const hasContractId = useMockModeStore((s) => s.hasContractId);
-  const toggleMockMode = useMockModeStore((s) => s.toggle);
-  const resetStreams = useStreamsStore((s) => s.reset);
-
-  const handleToggle = () => {
-    toggleMockMode();
-    clearClientCache();
-    // Reset and reload streams on the next tick so the store picks up the new mode.
-    setTimeout(() => resetStreams(), 0);
-  };
+  const publicKey = useWalletStore((s) => s.publicKey);
+  const isWalletConnected = !!publicKey;
 
   return (
     <>
@@ -115,45 +107,22 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         <div className="mt-4 rounded-sm border border-line p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                className="h-1.5 w-1.5 rounded-pill"
-                style={{ background: isMock ? 'var(--accent-2)' : 'var(--accent)' }}
-              />
-              <span className="eyebrow text-[0.6rem] text-muted">
-                {isMock ? 'Mock mode' : 'Live contract'}
-              </span>
-            </div>
-
-            {hasContractId && (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isMock}
-                aria-label="Toggle mock mode"
-                onClick={handleToggle}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-line transition-colors ${
-                  isMock ? 'bg-accent-2/20' : 'bg-surface2'
-                }`}
-              >
-                <span
-                  className={`inline-block h-[14px] w-[14px] transform rounded-full border border-line transition-transform ${
-                    isMock
-                      ? 'translate-x-[2px] bg-accent-2'
-                      : 'translate-x-[18px] bg-accent'
-                  }`}
-                />
-              </button>
-            )}
+          <div className="flex items-center gap-2">
+            <span
+              className="h-1.5 w-1.5 rounded-pill"
+              style={{ background: isMock ? 'var(--accent-2)' : 'var(--accent)' }}
+            />
+            <span className="eyebrow text-[0.6rem] text-muted">
+              {isMock ? 'Demo mode' : 'Live contract'}
+            </span>
           </div>
 
           <p className="mt-1.5 text-[11px] leading-snug text-faint">
-            {!hasContractId
-              ? 'In-memory demo data. Set VITE_CONTRACT_ID to go live.'
-              : isMock
-                ? 'Using in-memory demo data. Toggle to switch to the live contract.'
-                : 'Connected to a deployed Soroban contract. Toggle to use demo data.'}
+            {isWalletConnected
+              ? 'Connected to a deployed Soroban contract.'
+              : !hasContractId
+                ? 'No contract configured. Running in-memory demo.'
+                : 'Running in-memory demo. Connect a wallet to use the live contract.'}
           </p>
         </div>
       </aside>
