@@ -66,6 +66,14 @@
 | **Package**     | `contracts/subscription`                                                                                                            |
 | **Network**     | Stellar Testnet                                                                                                                     |
 
+### Verified Contract Call
+
+Successful Testnet transaction produced by the frontend contract flow:
+
+`6ed7e283fc9f865db41733f41ad1e6d03c4f834474c883df907795c332875e48`
+
+[View the transaction on Stellar Expert](https://stellar.expert/explorer/testnet/tx/6ed7e283fc9f865db41733f41c883df907795c332875e48)
+
 ### Contract Functions
 
 | Function                                                                     | Description                                                  |
