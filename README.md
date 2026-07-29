@@ -21,6 +21,34 @@
 
 ---
 
+## Screenshots
+
+![Onboarding](screenshots/onboarding_screen.png)
+*The StreamPay landing page introducing programmable recurring payments on Stellar.*
+
+![Wallet connect](screenshots/wallet_connect.png)
+*Connecting a Freighter wallet to begin interacting with the dApp.*
+
+![Dashboard](screenshots/dashboard.png)
+*Dashboard overview showing active streams, locked totals, and live event activity.*
+
+![Streams](screenshots/streams.png)
+*Streams view listing all active and completed subscription schedules.*
+
+![Send XLM](screenshots/send_xlm.png)
+*Sending a direct XLM payment to any Stellar address on Testnet.*
+
+![Create](screenshots/create.png)
+*Creating a new subscription stream by specifying recipient, amount, cadence, and deposit.*
+
+![Activity](screenshots/activity.png)
+*Real-time event feed showing all contract events including payments, deposits, and cancellations.*
+
+![Wallet Disconnect](screenshots/wallet_connected.png)
+*Disconnecting the wallet to return to the mock/demo mode.*
+
+---
+
 ## Contract
 
 | Field | Value |
