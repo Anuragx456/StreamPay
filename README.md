@@ -23,34 +23,35 @@
 
 ## Screenshots
 
-Onboarding
-_The StreamPay landing page introducing programmable recurring payments on Stellar._
+![Onboarding](screenshots/onboarding_screen.png)
+*The StreamPay landing page introducing programmable recurring payments on Stellar.*
 
-Wallet connect
-_Connecting a Freighter wallet to begin interacting with the dApp._
+![Wallet connect](screenshots/wallet_connect.png)
+*Connecting a Freighter wallet to begin interacting with the dApp.*
 
-Dashboard
-_Dashboard overview showing active streams, locked totals, and live event activity._
+![Dashboard](screenshots/dashboard.png)
+*Dashboard overview showing active streams, locked totals, and live event activity.*
 
-Streams
-_Streams view listing all active and completed subscription schedules._
+![Streams](screenshots/streams.png)
+*Streams view listing all active and completed subscription schedules.*
 
-Send XLM
-_Sending a direct XLM payment to any Stellar address on Testnet._
+![Send XLM](screenshots/send_xlm.png)
+*Sending a direct XLM payment to any Stellar address on Testnet.*
 
-Sending Payment _The in-progress transaction view showing the process of a payment is being submitted and confirmed._
+![Sending Payment](screenshots/sending_payment.png)
+*The in-progress transaction view showing the 6-stage progress spinner while a payment is being submitted and confirmed.*
 
-Payment Sent
-_A successful payment confirmation panel with the transaction hash and Stellar Expert explorer link._
+![Payment Sent](screenshots/payment_sent.png)
+*A successful payment confirmation panel with the transaction hash and Stellar Expert explorer link.*
 
-Create
-_Creating a new subscription stream by specifying recipient, amount, cadence, and deposit._
+![Create](screenshots/create.png)
+*Creating a new subscription stream by specifying recipient, amount, cadence, and deposit.*
 
-Activity
-_Real-time event feed showing all contract events including payments, deposits, and cancellations._
+![Activity](screenshots/activity.png)
+*Real-time event feed showing all contract events including payments, deposits, and cancellations.*
 
-Wallet Disconnect
-_Disconnecting the wallet to return to the mock/demo mode._
+![Wallet Disconnect](screenshots/wallet_connected.png)
+*Disconnecting the wallet to return to the mock/demo mode.*
 
 ---
 
