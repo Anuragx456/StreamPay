@@ -21,12 +21,12 @@ import {
   BASE_FEE,
   Contract,
   Keypair,
-  SorobanRpc,
   TransactionBuilder,
   nativeToScVal,
   scValToNative,
   xdr,
 } from '@stellar/stellar-sdk';
+import { Server as SorobanRpcServer, Api as SorobanRpcApi } from '@stellar/stellar-sdk/rpc';
 
 // Load env from the repo root .env (workspace cwd is apps/watcher), then let a
 // local .env or real process env override. dotenv does not clobber set vars.
@@ -116,7 +116,7 @@ function normalizeSchedule(id: string, raw: Record<string, unknown>): WatchSched
 const scheduleIdArg = (id: number): xdr.ScVal => nativeToScVal(BigInt(id), { type: 'u64' });
 
 class Watcher {
-  private server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
+  private server = new SorobanRpcServer(SOROBAN_RPC_URL, {
     allowHttp: SOROBAN_RPC_URL.startsWith('http://'),
   });
   private contract = new Contract(CONTRACT_ID);
@@ -135,7 +135,7 @@ class Watcher {
       .build();
 
     const sim = await this.server.simulateTransaction(tx);
-    if (SorobanRpc.Api.isSimulationError(sim)) {
+    if (SorobanRpcApi.isSimulationError(sim)) {
       throw new Error(`simulate ${method} failed: ${sim.error}`);
     }
     const retval = sim.result?.retval;
@@ -179,11 +179,11 @@ class Watcher {
     }
 
     let got = await this.server.getTransaction(sent.hash);
-    for (let i = 0; i < 15 && got.status === SorobanRpc.Api.GetTransactionStatus.NOT_FOUND; i += 1) {
+    for (let i = 0; i < 15 && got.status === SorobanRpcApi.GetTransactionStatus.NOT_FOUND; i += 1) {
       await new Promise((r) => setTimeout(r, 1000));
       got = await this.server.getTransaction(sent.hash);
     }
-    if (got.status !== SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
+    if (got.status !== SorobanRpcApi.GetTransactionStatus.SUCCESS) {
       throw new Error(`tx ${sent.hash} ended ${got.status}`);
     }
     return sent.hash;

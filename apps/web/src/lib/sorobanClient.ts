@@ -17,8 +17,8 @@ import {
   TransactionBuilder,
   BASE_FEE,
   xdr,
-  SorobanRpc,
 } from '@stellar/stellar-sdk';
+import { Server as SorobanRpcServer, Api as SorobanRpcApi } from '@stellar/stellar-sdk/rpc';
 import type { StreamSnapshot } from './mockClient';
 import type { ContractClient } from './contract';
 import { CONTRACT_ID, NETWORK_PASSPHRASE, SOROBAN_RPC_URL } from './constants';
@@ -47,7 +47,7 @@ const SCALE = 10_000_000;
 /** Ledgers to backfill when no persisted cursor is available (~24h). */
 const EVENT_LOOKBACK_LEDGERS = 17_280;
 
-const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
+const server = new SorobanRpcServer(SOROBAN_RPC_URL, {
   allowHttp: SOROBAN_RPC_URL.startsWith('http://'),
 });
 
@@ -109,7 +109,7 @@ function decodeSchedule(id: string, raw: Record<string, unknown>): Schedule {
 }
 
 /** Decode a raw RPC event into a UI StreamEvent (or null for unknown topics). */
-function decodeEvent(ev: SorobanRpc.Api.EventResponse): StreamEvent | null {
+function decodeEvent(ev: SorobanRpcApi.EventResponse): StreamEvent | null {
   const topics = ev.topic.map((t) => scValToNative(t));
   const kind = String(topics[0]);
   const scheduleId = String(topics[1] ?? '');
@@ -166,7 +166,7 @@ class SorobanClient implements ContractClient {
       .build();
 
     const sim = await server.simulateTransaction(tx);
-    if (SorobanRpc.Api.isSimulationError(sim)) {
+    if (SorobanRpcApi.isSimulationError(sim)) {
       throw new Error(`Simulation failed for ${method}: ${sim.error}`);
     }
     const retval = sim.result?.retval;
@@ -206,11 +206,11 @@ class SorobanClient implements ContractClient {
     progress?.('pending', sent.hash);
 
     let got = await server.getTransaction(sent.hash);
-    for (let i = 0; i < 15 && got.status === SorobanRpc.Api.GetTransactionStatus.NOT_FOUND; i += 1) {
+    for (let i = 0; i < 15 && got.status === SorobanRpcApi.GetTransactionStatus.NOT_FOUND; i += 1) {
       await new Promise((r) => setTimeout(r, 1000));
       got = await server.getTransaction(sent.hash);
     }
-    if (got.status !== SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
+    if (got.status !== SorobanRpcApi.GetTransactionStatus.SUCCESS) {
       throw new Error(`Tx ${sent.hash} ended ${got.status}`);
     }
     return {
@@ -245,21 +245,27 @@ class SorobanClient implements ContractClient {
   /** Fetch events after a cursor, or backfill recent ledgers when no cursor is usable. */
   async getEvents(cursor?: string): Promise<EventPage> {
     const fetchPage = async (after?: string) => {
-      const request: SorobanRpc.Server.GetEventsRequest = {
-        filters: [{ type: 'contract', contractIds: [CONTRACT_ID] }],
-        limit: 100,
-      };
-      if (after) request.cursor = after;
-      else {
-      const { sequence } = await server.getLatestLedger();
-        request.startLedger = Math.max(1, sequence - EVENT_LOOKBACK_LEDGERS);
+      let request: SorobanRpcServer.GetEventsRequest;
+      if (after) {
+        request = {
+          filters: [{ type: 'contract', contractIds: [CONTRACT_ID] }],
+          cursor: after,
+          limit: 100,
+        };
+      } else {
+        const { sequence } = await server.getLatestLedger();
+        request = {
+          filters: [{ type: 'contract', contractIds: [CONTRACT_ID] }],
+          startLedger: Math.max(1, sequence - EVENT_LOOKBACK_LEDGERS),
+          limit: 100,
+        };
       }
       const res = await server.getEvents(request);
       const events = res.events
         .map(decodeEvent)
         .filter((e): e is StreamEvent => e !== null)
         .reverse();
-      return { events, cursor: res.events.at(-1)?.pagingToken ?? after };
+      return { events, cursor: res.cursor ?? after };
     };
 
     return withCursorRecovery(cursor, fetchPage);
