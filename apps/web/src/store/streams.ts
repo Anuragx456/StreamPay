@@ -44,6 +44,7 @@ interface StreamsState {
   pause: (id: string) => Promise<void>;
   resume: (id: string) => Promise<void>;
   cancel: (id: string) => Promise<void>;
+  reset: () => void;
 }
 
 type SetState = (fn: (state: StreamsState) => Partial<StreamsState>) => void;
@@ -189,4 +190,24 @@ export const useStreamsStore = create<StreamsState>((set, get) => ({
     runAction(set, get, id, 'resume', (onProgress) => contract.resume(id, onProgress), 'Stream resumed'),
   cancel: (id) =>
     runAction(set, get, id, 'cancel', (onProgress) => contract.cancel(id, onProgress), 'Stream cancelled, remainder refunded'),
+
+  /**
+   * Reset all cached state and reload from the active contract client. Called
+   * when the user toggles mock/live mode to ensure stale data from the previous
+   * mode is discarded.
+   */
+  reset: () => {
+    localStorage.removeItem(CURSOR_KEY);
+    set({
+      schedules: [],
+      events: [],
+      loading: false,
+      loaded: false,
+      pending: {},
+      transactions: {},
+      syncError: null,
+      lastSync: null,
+    });
+    void get().refresh();
+  },
 }));

@@ -4,8 +4,8 @@
 // mutating calls with the connected wallet. Views never change between modes —
 // keeping this seam narrow is what makes the app demoable standalone.
 
-import { IS_MOCK } from './constants';
-import { mockClient, type StreamSnapshot } from './mockClient';
+import { useMockModeStore } from '../store/mockMode';
+import { MockClient, type StreamSnapshot } from './mockClient';
 import type {
   CreateScheduleInput,
   EventPage,
@@ -36,8 +36,11 @@ export interface ContractClient {
  */
 let realClient: ContractClient | null = null;
 
+/** Fresh instance each time mock mode is re-entered via the toggle. */
+let mockClientInstance = new MockClient();
+
 async function getClient(): Promise<ContractClient> {
-  if (IS_MOCK) return mockClient;
+  if (useMockModeStore.getState().isMock) return mockClientInstance;
   if (realClient) return realClient;
 
   // Dynamic imports: pulled in only in live mode.
@@ -51,6 +54,16 @@ async function getClient(): Promise<ContractClient> {
     (xdr: string) => useWalletStore.getState().signXdr(xdr),
   );
   return realClient;
+}
+
+/**
+ * Clear all cached clients so the next call to any contract method resolves
+ * against the newly-selected mode. Call this after toggling mock/live mode so
+ * stale in-memory state doesn't leak across the boundary.
+ */
+export function clearClientCache(): void {
+  realClient = null;
+  mockClientInstance = new MockClient();
 }
 
 /**
@@ -68,5 +81,3 @@ export const contract: ContractClient = {
   resume: async (id, progress) => (await getClient()).resume(id, progress),
   cancel: async (id, progress) => (await getClient()).cancel(id, progress),
 };
-
-export { IS_MOCK };

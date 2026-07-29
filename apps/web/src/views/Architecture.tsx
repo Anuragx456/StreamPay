@@ -1,5 +1,5 @@
-import { IS_MOCK } from '@/lib/contract';
 import { NETWORK, SOROBAN_RPC_URL } from '@/lib/constants';
+import { useMockModeStore } from '@/store/mockMode';
 import { BrowserMockup } from '@/components/BrowserMockup';
 import { IconActivity, IconArchitecture, IconBolt, IconStreams, IconWallet } from '@/components/icons';
 
@@ -38,13 +38,15 @@ const PIECES: Piece[] = [
   },
 ];
 
-const CONFIG: { label: string; value: string }[] = [
-  { label: 'Mode', value: IS_MOCK ? 'Mock (in-memory)' : 'Live contract' },
+const CONFIG = (isMock: boolean): { label: string; value: string }[] => [
+  { label: 'Mode', value: isMock ? 'Mock (in-memory)' : 'Live contract' },
   { label: 'Network', value: NETWORK },
   { label: 'Soroban RPC', value: SOROBAN_RPC_URL },
 ];
 
 export function Architecture() {
+  const isMock = useMockModeStore((s) => s.isMock);
+
   return (
     <div className="space-y-10">
       <div className="border-b border-line pb-6">
@@ -108,7 +110,7 @@ export function Architecture() {
           </h2>
         </div>
         <dl className="grid gap-px overflow-hidden rounded-sm border border-line bg-line sm:grid-cols-3">
-          {CONFIG.map((c) => (
+          {CONFIG(isMock).map((c) => (
             <div key={c.label} className="bg-surface p-4">
               <dt className="eyebrow text-faint">{c.label}</dt>
               <dd className="mt-2 break-words font-mono text-sm text-ink">{c.value}</dd>
@@ -116,7 +118,7 @@ export function Architecture() {
           ))}
         </dl>
         <p className="mt-4 text-xs text-faint">
-          {IS_MOCK
+          {isMock
             ? 'Running fully in-memory. Set VITE_CONTRACT_ID to point the app at a deployed Soroban contract.'
             : 'Connected to a deployed Soroban contract. Mutating calls are signed by the connected wallet.'}
         </p>
