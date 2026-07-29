@@ -164,6 +164,31 @@ describe('MockClient full payout', () => {
   });
 });
 
+describe('MockClient disposal', () => {
+  it('rejects all methods after dispose', async () => {
+    const client = new MockClient();
+    client.dispose();
+
+    await expectReject(client.getSnapshot(), /disposed/i);
+    await expectReject(client.getEvents(), /disposed/i);
+    await expectReject(client.initSchedule(baseInput(), SENDER), /disposed/i);
+    await expectReject(client.deposit('1', 10), /disposed/i);
+    await expectReject(client.payNext('1'), /disposed/i);
+    await expectReject(client.pause('1'), /disposed/i);
+    await expectReject(client.resume('1'), /disposed/i);
+    await expectReject(client.cancel('1'), /disposed/i);
+  });
+
+  it('a new MockClient is functional after an old one is disposed', async () => {
+    const old = new MockClient();
+    old.dispose();
+
+    const fresh = new MockClient();
+    const { schedules } = await run(fresh.getSnapshot());
+    expect(schedules.length).toBeGreaterThan(0);
+  });
+});
+
 describe('MockClient.cancel', () => {
   it('ends the schedule and records the refunded remainder', async () => {
     const client = new MockClient();

@@ -99,7 +99,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     await disconnectWallet();
     localStorage.removeItem(STORAGE_KEY);
     set({ publicKey: null, walletId: null, balance: null, funded: false });
-    // Re-enable mock mode so the app stays usable without a wallet.
+    // Return to mock mode so the app stays explorable without a wallet.
+    // This is an intentional product decision for a demo-oriented app:
+    // on disconnect the user sees seed data rather than a blank slate,
+    // making it immediately obvious what the UI looks like when populated.
+    // A production-only app would show an empty "connect a wallet" state.
     useMockModeStore.getState().setIsMock(true);
     clearClientCache();
     useStreamsStore.getState().reset();
@@ -141,10 +145,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       if (address) {
         set({ publicKey: address, walletId: stored });
         void get().refreshBalance();
-        // A re-authorised wallet means we should go live.
-        useMockModeStore.getState().setIsMock(false);
-        clearClientCache();
-        useStreamsStore.getState().reset();
+        // A re-authorised wallet means we should go live — but only when a
+        // contract id is configured.
+        if (useMockModeStore.getState().hasContractId) {
+          useMockModeStore.getState().setIsMock(false);
+          clearClientCache();
+          useStreamsStore.getState().reset();
+        }
       }
     } catch {
       // Stored wallet no longer authorized — clear it silently.

@@ -37,6 +37,16 @@ export class MockClient {
   private schedules: Schedule[] = seedSchedules();
   private events: StreamEvent[] = seedEvents();
   private nextId = this.schedules.length + 1;
+  private _disposed = false;
+
+  /** Mark this client as disposed. Subsequent method calls will throw. */
+  dispose(): void {
+    this._disposed = true;
+  }
+
+  private checkDisposed(): void {
+    if (this._disposed) throw new Error('MockClient disposed');
+  }
 
   private pushEvent(e: Omit<StreamEvent, 'id' | 'txHash' | 'ts'>): StreamEvent {
     const event: StreamEvent = {
@@ -50,6 +60,7 @@ export class MockClient {
   }
 
   async getSnapshot(): Promise<StreamSnapshot> {
+    this.checkDisposed();
     return delay({
       schedules: this.schedules.map((s) => ({ ...s })),
       events: this.events.map((e) => ({ ...e })),
@@ -57,6 +68,7 @@ export class MockClient {
   }
 
   async getEvents(cursor?: string) {
+    this.checkDisposed();
     const index = cursor ? this.events.findIndex((event) => event.id === cursor) : -1;
     const events = cursor && index >= 0 ? this.events.slice(0, index) : this.events;
     return delay({ events: events.map((event) => ({ ...event })), cursor: this.events[0]?.id });
@@ -75,6 +87,7 @@ export class MockClient {
     sender: string,
     progress?: TransactionProgress,
   ): Promise<TransactionReceipt<string>> {
+    this.checkDisposed();
     const id = String(this.nextId);
     this.nextId += 1;
     const schedule: Schedule = {
@@ -99,6 +112,7 @@ export class MockClient {
   }
 
   async deposit(id: string, amount: number, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    this.checkDisposed();
     const s = this.mustGet(id);
     s.deposit += amount;
     this.pushEvent({ type: 'deposit', scheduleId: id, amount, asset: s.asset });
@@ -112,6 +126,7 @@ export class MockClient {
    * the UI can surface the same errors the contract would.
    */
   async payNext(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    this.checkDisposed();
     const s = this.mustGet(id);
     if (s.status !== 'Active') throw new Error(`Stream is ${s.status.toLowerCase()}, cannot pay`);
     if (s.paidCount >= s.totalCount) throw new Error('All installments already paid');
@@ -138,18 +153,21 @@ export class MockClient {
   }
 
   async pause(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    this.checkDisposed();
     this.setStatus(id, 'Paused', 'pause');
     await delay(null);
     return this.receipt(undefined, progress);
   }
 
   async resume(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    this.checkDisposed();
     this.setStatus(id, 'Active', 'resume');
     await delay(null);
     return this.receipt(undefined, progress);
   }
 
   async cancel(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
+    this.checkDisposed();
     const s = this.mustGet(id);
     const refund = s.deposit;
     s.deposit = 0;

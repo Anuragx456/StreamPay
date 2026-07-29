@@ -118,11 +118,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </div>
 
           <p className="mt-1.5 text-[11px] leading-snug text-faint">
-            {isWalletConnected
-              ? 'Connected to a deployed Soroban contract.'
-              : !hasContractId
-                ? 'No contract configured. Running in-memory demo.'
-                : 'Running in-memory demo. Connect a wallet to use the live contract.'}
+            {isMock
+              ? isWalletConnected
+                ? 'Mock mode active — wallet connected but no VITE_CONTRACT_ID configured.'
+                : !hasContractId
+                  ? 'No contract configured. Running in-memory demo.'
+                  : 'Mock mode active. Connect a wallet to use the live contract.'
+              : isWalletConnected
+                ? 'Connected to a deployed Soroban contract.'
+                : 'Live contract — connect a wallet to sign mutations.'}
           </p>
         </div>
       </aside>

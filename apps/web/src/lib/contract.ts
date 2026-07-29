@@ -92,6 +92,7 @@ async function getClient(): Promise<ContractClient> {
  */
 export function clearClientCache(): void {
   realClient = null;
+  mockClientInstance.dispose();
   mockClientInstance = new MockClient();
 }
 

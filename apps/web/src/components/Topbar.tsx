@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useWalletStore } from '@/store/wallet';
 import { truncateKey, formatAmount } from '@/lib/format';
 import { ThemeToggle } from './ThemeToggle';
@@ -12,15 +11,13 @@ interface TopbarProps {
  * Top bar with the mobile menu button, theme toggle, and wallet control.
  * Connect opens the stellar-wallets-kit selector modal (Freighter / Lobstr);
  * once connected we show the truncated key, live XLM balance, and disconnect.
+ *
+ * Wallet session restoration is handled by AppShell in App.tsx so that
+ * startEventSync() always runs against the correct mode.
  */
 export function Topbar({ onOpenMenu }: TopbarProps) {
   const { publicKey, walletId, connecting, balance, balanceLoading, funded, connect, disconnect } =
     useWalletStore();
-
-  // Restore a persisted wallet session once on mount.
-  useEffect(() => {
-    void useWalletStore.getState().restore();
-  }, []);
 
   return (
     <header

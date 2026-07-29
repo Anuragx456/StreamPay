@@ -33,6 +33,14 @@ interface StreamsState {
   syncLoading: boolean;
   syncError: string | null;
   lastSync: number | null;
+  /**
+   * Monotonically-increasing counter incremented on every reset(). Each
+   * refresh() call captures the generation at call time; when its response
+   * arrives, it checks against the current generation. A stale response (from
+   * a request started before the most recent reset) is discarded, preventing
+   * out-of-order mock/live data from overwriting the correct state.
+   */
+  generation: number;
 
   refresh: () => Promise<void>;
   pollEvents: () => Promise<void>;
@@ -101,11 +109,16 @@ export const useStreamsStore = create<StreamsState>((set, get) => ({
   syncLoading: false,
   syncError: null,
   lastSync: null,
+  generation: 0,
 
   refresh: async () => {
+    const gen = get().generation;
     set(() => ({ loading: true }));
     try {
       const snapshot = await contract.getSnapshot();
+      // Discard stale responses from requests started before the most
+      // recent reset()/mode switch.
+      if (get().generation !== gen) return;
       set((state) => ({
         schedules: snapshot.schedules,
         events: mergeEvents(state.events, snapshot.events),
@@ -113,6 +126,9 @@ export const useStreamsStore = create<StreamsState>((set, get) => ({
         loaded: true,
       }));
     } catch (error) {
+      // Only report errors for the current generation — stale requests
+      // that fail (e.g. a disposed MockClient) are harmless.
+      if (get().generation !== gen) return;
       const message = errorMessage(error);
       set(() => ({ loading: false, syncError: message }));
       toast.error('Failed to load streams', message);
@@ -195,10 +211,13 @@ export const useStreamsStore = create<StreamsState>((set, get) => ({
    * Reset all cached state and reload from the active contract client. Called
    * when the user toggles mock/live mode to ensure stale data from the previous
    * mode is discarded.
+   *
+   * Increments generation so any in-flight refresh() from the old mode
+   * discards its response when it eventually arrives.
    */
   reset: () => {
     localStorage.removeItem(CURSOR_KEY);
-    set({
+    set((state) => ({
       schedules: [],
       events: [],
       loading: false,
@@ -207,7 +226,8 @@ export const useStreamsStore = create<StreamsState>((set, get) => ({
       transactions: {},
       syncError: null,
       lastSync: null,
-    });
+      generation: state.generation + 1,
+    }));
     void get().refresh();
   },
 }));

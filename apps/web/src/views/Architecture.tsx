@@ -1,5 +1,6 @@
-import { NETWORK, SOROBAN_RPC_URL } from '@/lib/constants';
+import { NETWORK, SOROBAN_RPC_URL, CONTRACT_ID } from '@/lib/constants';
 import { useMockModeStore } from '@/store/mockMode';
+import { useWalletStore } from '@/store/wallet';
 import { BrowserMockup } from '@/components/BrowserMockup';
 import { IconActivity, IconArchitecture, IconBolt, IconStreams, IconWallet } from '@/components/icons';
 
@@ -38,14 +39,18 @@ const PIECES: Piece[] = [
   },
 ];
 
-const CONFIG = (isMock: boolean): { label: string; value: string }[] => [
+const CONFIG = (isMock: boolean, hasContractId: boolean, walletConnected: boolean): { label: string; value: string }[] => [
   { label: 'Mode', value: isMock ? 'Mock (in-memory)' : 'Live contract' },
+  { label: 'Wallet', value: walletConnected ? 'Connected' : 'Disconnected' },
+  { label: 'Contract ID', value: hasContractId ? CONTRACT_ID.slice(0, 12) + '…' : 'Not configured' },
   { label: 'Network', value: NETWORK },
   { label: 'Soroban RPC', value: SOROBAN_RPC_URL },
 ];
 
 export function Architecture() {
   const isMock = useMockModeStore((s) => s.isMock);
+  const hasContractId = useMockModeStore((s) => s.hasContractId);
+  const publicKey = useWalletStore((s) => s.publicKey);
 
   return (
     <div className="space-y-10">
@@ -110,7 +115,7 @@ export function Architecture() {
           </h2>
         </div>
         <dl className="grid gap-px overflow-hidden rounded-sm border border-line bg-line sm:grid-cols-3">
-          {CONFIG(isMock).map((c) => (
+          {CONFIG(isMock, hasContractId, !!publicKey).map((c) => (
             <div key={c.label} className="bg-surface p-4">
               <dt className="eyebrow text-faint">{c.label}</dt>
               <dd className="mt-2 break-words font-mono text-sm text-ink">{c.value}</dd>
@@ -119,7 +124,9 @@ export function Architecture() {
         </dl>
         <p className="mt-4 text-xs text-faint">
           {isMock
-            ? 'Running fully in-memory. Set VITE_CONTRACT_ID to point the app at a deployed Soroban contract.'
+            ? hasContractId
+              ? 'Mock mode active. Connect a wallet to switch to the live Soroban contract.'
+              : 'No VITE_CONTRACT_ID set. Running fully in-memory.'
             : 'Connected to a deployed Soroban contract. Mutating calls are signed by the connected wallet.'}
         </p>
       </section>
