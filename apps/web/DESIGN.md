@@ -70,9 +70,9 @@ Loaded from Google Fonts in `index.css`.
 
 | Role | Family | Notes |
 | --- | --- | --- |
-| Display | **Instrument Sans** (300) | Headlines, KPI numbers, section titles. `letter-spacing -0.02em`, `line-height ~1.02`, `text-wrap: balance` on h1–h3. |
+| Display | **Hanken Grotesk** (300–600) | Headlines, KPI numbers, section titles. `letter-spacing -0.02em`, `line-height ~1.02`, `text-wrap: balance` on h1–h3. |
 | Body | **Inter** (400–600) | UI + prose, `1.0625rem / 1.6`, muted color, capped at 52ch. |
-| Serif | **Fraunces** (400–500) | Brand wordmark lockup only (sidebar "StreamPay"). Never in UI/body. |
+| Serif | **Georgia** (fallback) | Brand wordmark lockup only (sidebar "StreamPay"). Never in UI/body. |
 | Mono | **JetBrains Mono** (400–500) | Numbers, addresses, hashes, eyebrows, labels, status pills, config values. |
 
 - Display headline: `clamp(2.25rem, 5.5vw, 3.75rem)` on the dashboard hero
@@ -109,7 +109,9 @@ Shared primitives in `src/components/` and the `@layer components` block of
   uppercase, **colored text + a tiny dot, never a filled background.** Active =
   teal(light)/amber(dark), Paused = muted amber, Ended = faint.
 - **Progress:** `.progress-track` (`--surface-2` + hairline) + `.progress-fill`
-  (solid `--accent`, no gradient).
+  (solid `--accent`, no gradient). Animated with `transform: scaleX`
+  (compositor-friendly, no layout thrash). `transform-origin: left`. The
+  component passes the 0–1 ratio as an inline `transform: scaleX(...)`.
 - **Sidebar / Topbar:** hairline dividers; active nav = `--active-nav` text + a
   1px underline (not a filled box). No blur on the topbar.
 - **Tables:** hairline row dividers only; header = mono uppercase faint labels.
@@ -134,7 +136,8 @@ Shared primitives in `src/components/` and the `@layer components` block of
 
 - 150–250ms on interactive transitions (color/border only; layout props are not
   animated). Ease-out curves; no bounce/elastic.
-- Marquee 40s linear; progress fill uses an ease-out-quart width transition.
+- Marquee 40s linear; progress fill uses a `transform: scaleX` transition
+  (ease-out-quart curve, compositor-friendly).
 - Every animation has a `@media (prefers-reduced-motion: reduce)` off-switch
   (marquee, skeleton sweep, progress transition, smooth scroll).
 

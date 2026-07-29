@@ -301,7 +301,7 @@ function MockDashboard() {
         </div>
         <div className="px-3 py-3">
           <div className="progress-track">
-            <div className="progress-fill" style={{ width: '58%' }} />
+            <div className="progress-fill" style={{ transform: 'scaleX(0.58)' }} />
           </div>
           <div className="mt-2 flex justify-between font-mono text-[0.6rem] text-faint">
             <span>7/12 paid</span>
