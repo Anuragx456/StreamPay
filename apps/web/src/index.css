@@ -24,7 +24,7 @@
   --accent-ink: #1a1815; /* text on accent */
   --accent-hover: #e0940f; /* darkened amber for hover */
   --accent-2: #0e7c66; /* teal — light active state / texture */
-  --active-nav: var(--accent-2);
+  --active-nav: var(--accent);
 
   /* status */
   --status-active: var(--accent-2);
