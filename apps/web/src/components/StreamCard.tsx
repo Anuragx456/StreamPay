@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Schedule } from '@/lib/types';
 import { cadenceLabel, formatAmount, nextDueTs, progressPct, timeAgo, truncateKey } from '@/lib/format';
 import { useStreamsStore } from '@/store/streams';
+import { useWalletStore } from '@/store/wallet';
 import { ProgressBar } from './ProgressBar';
 import { StatusPill } from './StatusPill';
 import { Modal } from './Modal';
@@ -14,11 +15,16 @@ interface StreamCardProps {
 
 /**
  * A single subscription stream: progress, next-due, and the mutating actions
- * (top up / pay_next / pause·resume / cancel). Buttons disable while an action
- * for this schedule is in flight and reflect the on-chain guards (e.g. no
- * pay_next on a paused or fully-paid stream).
+ * (top up / pay_next / pause·resume / cancel). Ownership-aware: cancel, pause,
+ * resume, and top-up are only shown for the stream sender (matching the
+ * contract's sender.require_auth() guards). Pay_next is permissionless and
+ * always visible for Active due streams.
+ *
+ * Buttons disable while an action for this schedule is in flight and reflect
+ * the on-chain guards (e.g. no pay_next on a paused or fully-paid stream).
  */
 export function StreamCard({ schedule: s }: StreamCardProps) {
+  const publicKey = useWalletStore((st) => st.publicKey);
   const pending = useStreamsStore((st) => st.pending[s.id] ?? false);
   const payNext = useStreamsStore((st) => st.payNext);
   const pause = useStreamsStore((st) => st.pause);
@@ -34,6 +40,10 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState('');
+
+  const isSender = publicKey === s.sender;
+  const isRecipient = publicKey === s.recipient;
+  const roleLabel = isSender ? 'Sender' : isRecipient ? 'Recipient' : null;
 
   const pct = progressPct(s.paidCount, s.totalCount);
   const due = nextDueTs(s.lastPaidTs, s.cadenceSecs, s.createdTs);
@@ -54,7 +64,19 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate font-body text-base font-semibold text-ink">{s.label}</h3>
-          <p className="mt-0.5 font-mono text-xs text-faint">to {truncateKey(s.recipient)}</p>
+          <p className="mt-0.5 font-mono text-xs text-faint">
+            {isSender ? 'to' : 'from'}{' '}
+            {truncateKey(isSender ? s.recipient : s.sender)}
+            {roleLabel && (
+              <span
+                className="ml-1.5 inline-block rounded-sm px-1 py-px font-mono text-[0.6rem] uppercase tracking-wider"
+                style={{ background: 'rgba(var(--accent-rgb), 0.12)', color: 'var(--accent-2)' }}
+                title={isSender ? 'You are the sender of this stream' : 'You are the recipient of this stream'}
+              >
+                {roleLabel}
+              </span>
+            )}
+          </p>
         </div>
         <StatusPill status={s.status} />
       </div>
@@ -95,58 +117,80 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
       </div>
 
       {/* Actions */}
-      <div className="mt-auto flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="btn-primary flex-1"
-          disabled={!canPay || pending}
-          onClick={() => payNext(s.id)}
-          title={canPay ? 'Trigger pay_next()' : 'Not payable (status/deposit/timing)'}
-        >
-          <IconBolt className="h-4 w-4" /> Pay next
-        </button>
-        <button
-          type="button"
-          className="btn-ghost"
-          disabled={s.status === 'Ended' || pending}
-          onClick={() => setTopUpOpen(true)}
-        >
-          <IconPlus className="h-4 w-4" /> Top up
-        </button>
-        {s.status === 'Active' && (
+      {isSender ? (
+        <>
+          <div className="mt-auto flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn-primary flex-1"
+              disabled={!canPay || pending}
+              onClick={() => payNext(s.id)}
+              title={canPay ? 'Trigger pay_next()' : 'Not payable (status/deposit/timing)'}
+            >
+              <IconBolt className="h-4 w-4" /> Pay next
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={s.status === 'Ended' || pending}
+              onClick={() => setTopUpOpen(true)}
+            >
+              <IconPlus className="h-4 w-4" /> Top up
+            </button>
+            {s.status === 'Active' && (
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={pending}
+                onClick={() => pause(s.id)}
+                aria-label="Pause stream"
+              >
+                <IconPause className="h-4 w-4" />
+              </button>
+            )}
+            {s.status === 'Paused' && (
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={pending}
+                onClick={() => resume(s.id)}
+                aria-label="Resume stream"
+              >
+                <IconPlay className="h-4 w-4" />
+              </button>
+            )}
+            {s.status !== 'Ended' && (
+              <button
+                type="button"
+                className="btn-danger"
+                disabled={pending}
+                onClick={() => setCancelOpen(true)}
+                aria-label="Cancel stream"
+              >
+                <IconTrash className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </>
+      ) : roleLabel ? (
+        /* Recipient or other known role: only pay_next (permissionless), no owner controls */
+        <div className="mt-auto flex flex-wrap gap-2">
           <button
             type="button"
-            className="btn-ghost"
-            disabled={pending}
-            onClick={() => pause(s.id)}
-            aria-label="Pause stream"
+            className="btn-primary flex-1"
+            disabled={!canPay || pending}
+            onClick={() => payNext(s.id)}
+            title={canPay ? 'Trigger pay_next()' : 'Not payable (status/deposit/timing)'}
           >
-            <IconPause className="h-4 w-4" />
+            <IconBolt className="h-4 w-4" /> Pay next
           </button>
-        )}
-        {s.status === 'Paused' && (
-          <button
-            type="button"
-            className="btn-ghost"
-            disabled={pending}
-            onClick={() => resume(s.id)}
-            aria-label="Resume stream"
-          >
-            <IconPlay className="h-4 w-4" />
-          </button>
-        )}
-        {s.status !== 'Ended' && (
-          <button
-            type="button"
-            className="btn-danger"
-            disabled={pending}
-            onClick={() => setCancelOpen(true)}
-            aria-label="Cancel stream"
-          >
-            <IconTrash className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* No wallet connected or neither sender nor recipient: read-only */
+        <div className="mt-2 text-center font-mono text-[0.6rem] uppercase tracking-widest text-faint">
+          Read-only
+        </div>
+      )}
       <TransactionFeedback feedback={transaction} />
 
       {/* Top-up modal */}
@@ -209,7 +253,8 @@ export function StreamCard({ schedule: s }: StreamCardProps) {
         <p>
           The remaining escrow of{' '}
           <span className="font-mono font-semibold text-ink">{formatAmount(s.deposit, s.asset)}</span>{' '}
-          will be refunded to the sender and the stream marked <em>Ended</em>. This cannot be undone.
+          will be refunded to the sender and the stream marked <em>Ended</em>. The on-chain record is
+          preserved — cancellation is not deletion.
         </p>
       </Modal>
     </div>

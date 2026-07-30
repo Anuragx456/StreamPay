@@ -38,6 +38,13 @@ export class MockClient {
   private events: StreamEvent[] = seedEvents();
   private nextId = this.schedules.length + 1;
   private _disposed = false;
+  /**
+   * The connected wallet's public key, if any. Set externally via
+   * `clearClientCache()` in contract.ts when the wallet connects. When null,
+   * sender ownership checks are skipped (demo mode without a wallet). When set,
+   * mutating methods enforce that the caller owns the stream.
+   */
+  public connectedSender: string | null = null;
 
   /** Mark this client as disposed. Subsequent method calls will throw. */
   dispose(): void {
@@ -114,6 +121,9 @@ export class MockClient {
   async deposit(id: string, amount: number, progress?: TransactionProgress): Promise<TransactionReceipt> {
     this.checkDisposed();
     const s = this.mustGet(id);
+    if (this.connectedSender && this.connectedSender !== s.sender) {
+      throw new Error('Authorization: Only the stream sender can top up.');
+    }
     s.deposit += amount;
     this.pushEvent({ type: 'deposit', scheduleId: id, amount, asset: s.asset });
     await delay(null);
@@ -146,6 +156,20 @@ export class MockClient {
     return this.receipt(undefined, progress);
   }
 
+  /**
+   * Check that the connected wallet owns the stream. When no wallet is connected
+   * (connectedSender is null, e.g. demo mode) the check is skipped so demos
+   * remain usable. Once a wallet is connected, the sender must match.
+   */
+  private async assertSender(schedule: Schedule, action: string): Promise<void> {
+    if (this.connectedSender === null) return;
+    if (this.connectedSender !== schedule.sender) {
+      throw new Error(
+        `Authorization: Only the stream sender can ${action} this stream.`,
+      );
+    }
+  }
+
   private setStatus(id: string, status: ScheduleStatus, type: StreamEvent['type']): void {
     const s = this.mustGet(id);
     s.status = status;
@@ -154,6 +178,8 @@ export class MockClient {
 
   async pause(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
     this.checkDisposed();
+    const s = this.mustGet(id);
+    await this.assertSender(s, 'pause');
     this.setStatus(id, 'Paused', 'pause');
     await delay(null);
     return this.receipt(undefined, progress);
@@ -161,6 +187,8 @@ export class MockClient {
 
   async resume(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
     this.checkDisposed();
+    const s = this.mustGet(id);
+    await this.assertSender(s, 'resume');
     this.setStatus(id, 'Active', 'resume');
     await delay(null);
     return this.receipt(undefined, progress);
@@ -169,6 +197,7 @@ export class MockClient {
   async cancel(id: string, progress?: TransactionProgress): Promise<TransactionReceipt> {
     this.checkDisposed();
     const s = this.mustGet(id);
+    await this.assertSender(s, 'cancel');
     const refund = s.deposit;
     s.deposit = 0;
     s.status = 'Ended';

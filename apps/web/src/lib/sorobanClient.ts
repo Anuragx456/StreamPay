@@ -176,6 +176,12 @@ class SorobanClient implements ContractClient {
   /**
    * Mutating invocation: build -> prepare (simulate + assemble) -> sign via
    * wallet -> submit -> poll to completion. Throws on any failed status.
+   *
+   * Error messages are crafted so that callers (and the errorMessage helper in
+   * errors.ts) can pattern-match on them:
+   *  - Auth/preflight errors start with "Authorization: ..."
+   *  - Submission errors include the raw RPC result
+   *  - Confirmation timeouts still surface the transaction hash
    */
   private async invokeSigned(
     method: string,
@@ -201,7 +207,14 @@ class SorobanClient implements ContractClient {
     progress?.('submitting');
     const sent = await server.sendTransaction(signedTx);
     if (sent.status === 'ERROR' || sent.status === 'TRY_AGAIN_LATER') {
-      throw new Error(`Submit failed for ${method}: ${JSON.stringify(sent.errorResult)}`);
+      const detail = JSON.stringify(sent.errorResult);
+      // Check for authorization failure in the error result.
+      if (/AuthError|require_auth|ContractError.*#4/i.test(detail)) {
+        throw new Error(
+          `Authorization: Only the stream sender can perform this action. (${detail})`,
+        );
+      }
+      throw new Error(`Submit failed for ${method}: ${detail}`);
     }
     progress?.('pending', sent.hash);
 
@@ -211,7 +224,14 @@ class SorobanClient implements ContractClient {
       got = await server.getTransaction(sent.hash);
     }
     if (got.status !== SorobanRpcApi.GetTransactionStatus.SUCCESS) {
-      throw new Error(`Tx ${sent.hash} ended ${got.status}`);
+      // Transaction was accepted by the network but confirmation polling
+      // failed or the tx ended in a non-success status. Surface the hash so
+      // the user can look it up on the explorer.
+      const returnValStr =
+        'returnValue' in got && got.returnValue
+          ? ` Return: ${JSON.stringify(scValToNative(got.returnValue as import('@stellar/stellar-sdk').xdr.ScVal))}`
+          : '';
+      throw new Error(`Tx ${sent.hash} ended ${got.status}.${returnValStr}`);
     }
     return {
       hash: sent.hash,

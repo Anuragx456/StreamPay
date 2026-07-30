@@ -45,6 +45,7 @@ const baseInput = (over: Partial<CreateScheduleInput> = {}): CreateScheduleInput
 });
 
 const SENDER = 'GSENDERXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+const OTHER = 'GOTHERXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -202,5 +203,101 @@ describe('MockClient.cancel', () => {
 
     const cancelEvt = events.find((e) => e.type === 'cancel' && e.scheduleId === id);
     expect(cancelEvt?.amount).toBe(30); // remaining escrow refunded
+  });
+});
+
+describe('MockClient ownership enforcement', () => {
+  it('rejects cancel from a foreign wallet', async () => {
+    const client = new MockClient();
+    client.connectedSender = OTHER; // not the stream sender
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
+
+    await expectReject(client.cancel(id), /authorization/i);
+  });
+
+  it('allows cancel from the stream sender', async () => {
+    const client = new MockClient();
+    client.connectedSender = SENDER; // matches the schedule sender
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
+
+    await run(client.cancel(id));
+
+    const { schedules } = await run(client.getSnapshot());
+    expect(schedules.find((s) => s.id === id)?.status).toBe('Ended');
+  });
+
+  it('rejects pause from a foreign wallet', async () => {
+    const client = new MockClient();
+    client.connectedSender = OTHER;
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
+
+    await expectReject(client.pause(id), /authorization/i);
+  });
+
+  it('allows pause from the stream sender', async () => {
+    const client = new MockClient();
+    client.connectedSender = SENDER;
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
+
+    await run(client.pause(id));
+
+    const { schedules } = await run(client.getSnapshot());
+    expect(schedules.find((s) => s.id === id)?.status).toBe('Paused');
+  });
+
+  it('rejects resume from a foreign wallet', async () => {
+    const client = new MockClient();
+    // Create and pause as the owner first.
+    client.connectedSender = SENDER;
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
+    await run(client.pause(id));
+    // Now switch to a foreign wallet — resume should be rejected.
+    client.connectedSender = OTHER;
+
+    await expectReject(client.resume(id), /authorization/i);
+  });
+
+  it('allows resume from the stream sender', async () => {
+    const client = new MockClient();
+    client.connectedSender = SENDER;
+    const { value: id } = await run(client.initSchedule(baseInput(), SENDER));
+    await run(client.pause(id));
+    client.connectedSender = SENDER;
+
+    await run(client.resume(id));
+
+    const { schedules } = await run(client.getSnapshot());
+    expect(schedules.find((s) => s.id === id)?.status).toBe('Active');
+  });
+
+  it('rejects deposit from a foreign wallet', async () => {
+    const client = new MockClient();
+    client.connectedSender = OTHER;
+    const { value: id } = await run(client.initSchedule(baseInput({ initialDeposit: 0 }), SENDER));
+
+    await expectReject(client.deposit(id, 50), /authorization/i);
+  });
+
+  it('allows deposit from the stream sender', async () => {
+    const client = new MockClient();
+    client.connectedSender = SENDER;
+    const { value: id } = await run(client.initSchedule(baseInput({ initialDeposit: 0 }), SENDER));
+
+    await run(client.deposit(id, 50));
+
+    const { schedules } = await run(client.getSnapshot());
+    expect(schedules.find((s) => s.id === id)?.deposit).toBe(50);
+  });
+
+  it('allows all operations when no wallet is connected (demo mode)', async () => {
+    // connectedSender defaults to null — ownership checks are skipped
+    const client = new MockClient();
+    const { value: id } = await run(client.initSchedule(baseInput({ initialDeposit: 30 }), SENDER));
+
+    // Cancel should work without a connected sender
+    await run(client.cancel(id));
+
+    const { schedules } = await run(client.getSnapshot());
+    expect(schedules.find((s) => s.id === id)?.status).toBe('Ended');
   });
 });

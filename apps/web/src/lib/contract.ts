@@ -89,11 +89,14 @@ async function getClient(): Promise<ContractClient> {
  * Clear all cached clients so the next call to any contract method resolves
  * against the newly-selected mode. Call this after toggling mock/live mode so
  * stale in-memory state doesn't leak across the boundary.
+ *
+ * When a wallet is connected, pass publicKey so mock mode respects ownership.
  */
-export function clearClientCache(): void {
+export function clearClientCache(sender?: string | null): void {
   realClient = null;
   mockClientInstance.dispose();
   mockClientInstance = new MockClient();
+  if (sender) mockClientInstance.connectedSender = sender;
 }
 
 /**

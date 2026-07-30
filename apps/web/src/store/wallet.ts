@@ -88,8 +88,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       // Auto-switch to live mode now that a wallet is connected.
       if (useMockModeStore.getState().hasContractId) {
         useMockModeStore.getState().setIsMock(false);
-        clearClientCache();
+        clearClientCache(address);
         useStreamsStore.getState().reset();
+      } else {
+        // Stay in mock mode but set the sender so ownership rules apply.
+        clearClientCache(address);
       }
     } catch (err) {
       set({ connecting: false });
@@ -114,7 +117,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       localStorage.removeItem(STORAGE_KEY);
       set({ publicKey: null, walletId: null, balance: null, funded: false });
       useMockModeStore.getState().setIsMock(true);
-      clearClientCache();
+      clearClientCache(null);
       useStreamsStore.getState().reset();
 
       if (result.confirmed) {
@@ -130,7 +133,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       localStorage.removeItem(STORAGE_KEY);
       set({ publicKey: null, walletId: null, balance: null, funded: false });
       useMockModeStore.getState().setIsMock(true);
-      clearClientCache();
+      clearClientCache(null);
       useStreamsStore.getState().reset();
 
       toast.info(
@@ -182,7 +185,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         // contract id is configured.
         if (useMockModeStore.getState().hasContractId) {
           useMockModeStore.getState().setIsMock(false);
-          clearClientCache();
+          clearClientCache(address);
           useStreamsStore.getState().reset();
         }
       }
