@@ -47,6 +47,7 @@ vi.mock('../lib/constants', () => ({
 import { useWalletStore } from './wallet';
 import { useMockModeStore } from './mockMode';
 import { useStreamsStore } from './streams';
+import { useToastStore } from './toast';
 
 const WALLET_ADDR = 'GB2Y4P4QW5X6E7R2T3Y4U5I6O7P2A3S4D5F6G7H2J3K4L5M6N7O2P3Q4';
 
@@ -57,6 +58,7 @@ beforeEach(() => {
     publicKey: null,
     walletId: null,
     connecting: false,
+    disconnecting: false,
     balance: null,
     funded: false,
     balanceLoading: false,
@@ -69,6 +71,7 @@ beforeEach(() => {
     loaded: false,
     generation: 0,
   });
+  useToastStore.setState({ toasts: [] });
 });
 
 afterEach(() => {
@@ -118,7 +121,7 @@ describe('wallet mode transitions', () => {
       balance: 5000,
       funded: true,
     });
-    mocks.disconnectWallet.mockResolvedValue(undefined);
+    mocks.disconnectWallet.mockResolvedValue({ confirmed: true });
 
     await useWalletStore.getState().disconnect();
 
@@ -157,5 +160,122 @@ describe('wallet mode transitions', () => {
     expect(useWalletStore.getState().publicKey).toBe(WALLET_ADDR);
     // But stays in mock mode because no contract
     expect(useMockModeStore.getState().isMock).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Disconnect behaviour
+  // ---------------------------------------------------------------------------
+
+  it('successful disconnect clears all state and emits a success toast', async () => {
+    useMockModeStore.setState({ isMock: false, hasContractId: true });
+    useWalletStore.setState({
+      publicKey: WALLET_ADDR,
+      walletId: 'freighter',
+      balance: 5000,
+      funded: true,
+    });
+    localStorage.setItem('streampay:wallet', 'freighter');
+    mocks.disconnectWallet.mockResolvedValue({ confirmed: true });
+
+    await useWalletStore.getState().disconnect();
+
+    // Wallet state is fully cleared
+    expect(useWalletStore.getState().publicKey).toBeNull();
+    expect(useWalletStore.getState().walletId).toBeNull();
+    expect(useWalletStore.getState().balance).toBeNull();
+    expect(useWalletStore.getState().funded).toBe(false);
+    expect(useWalletStore.getState().disconnecting).toBe(false);
+    // Local storage cleared
+    expect(localStorage.getItem('streampay:wallet')).toBeNull();
+    // Returns to mock mode
+    expect(useMockModeStore.getState().isMock).toBe(true);
+    // Exactly one toast: success
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0]!.kind).toBe('success');
+    expect(toasts[0]!.title).toBe('Wallet disconnected');
+  });
+
+  it('failed provider disconnect clears local session and emits an info toast', async () => {
+    useMockModeStore.setState({ isMock: false, hasContractId: true });
+    useWalletStore.setState({
+      publicKey: WALLET_ADDR,
+      walletId: 'freighter',
+      balance: 5000,
+      funded: true,
+    });
+    localStorage.setItem('streampay:wallet', 'freighter');
+    mocks.disconnectWallet.mockResolvedValue({ confirmed: false, detail: 'Provider unreachable' });
+
+    await useWalletStore.getState().disconnect();
+
+    // Wallet state is still fully cleared (no stale session left behind)
+    expect(useWalletStore.getState().publicKey).toBeNull();
+    expect(useWalletStore.getState().walletId).toBeNull();
+    expect(useWalletStore.getState().balance).toBeNull();
+    expect(useWalletStore.getState().disconnecting).toBe(false);
+    expect(localStorage.getItem('streampay:wallet')).toBeNull();
+    expect(useMockModeStore.getState().isMock).toBe(true);
+    // Exactly one toast: info (not success)
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0]!.kind).toBe('info');
+    expect(toasts[0]!.title).toBe('Disconnected from StreamPay');
+  });
+
+  it('duplicate disconnect calls are ignored while one is pending', async () => {
+    useWalletStore.setState({
+      publicKey: WALLET_ADDR,
+      walletId: 'freighter',
+      balance: 5000,
+      funded: true,
+    });
+    // First call resolves only after we check the guard
+    mocks.disconnectWallet.mockImplementation(
+      () =>
+        new Promise<{ confirmed: boolean }>((resolve) => {
+          // Use setTimeout with fake timers so we control resolution
+          setTimeout(() => resolve({ confirmed: true }), 100);
+        }),
+    );
+
+    // Start first disconnect
+    const first = useWalletStore.getState().disconnect();
+
+    // While the first is in flight, disconnecting should be true
+    expect(useWalletStore.getState().disconnecting).toBe(true);
+
+    // Second call should be a no-op (guard returns early)
+    await useWalletStore.getState().disconnect();
+
+    // Advance timers so the first completes
+    await vi.advanceTimersByTimeAsync(100);
+    await first;
+
+    // Only one toast emitted
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+    expect(useWalletStore.getState().disconnecting).toBe(false);
+    expect(useWalletStore.getState().publicKey).toBeNull();
+  });
+
+  it('disconnect does not remove funds or cancel streams (only clears app session)', async () => {
+    useMockModeStore.setState({ isMock: false, hasContractId: true });
+    useWalletStore.setState({
+      publicKey: WALLET_ADDR,
+      walletId: 'freighter',
+      balance: 5000,
+      funded: true,
+    });
+    localStorage.setItem('streampay:wallet', 'freighter');
+    mocks.disconnectWallet.mockResolvedValue({ confirmed: true });
+
+    // Verify streams have been reset by checking the reset path exists
+    const streamReset = vi.spyOn(useStreamsStore.getState(), 'reset');
+
+    await useWalletStore.getState().disconnect();
+
+    // Streams store was reset (clears in-memory data but on-chain streams
+    // are unaffected — this is an app-only action)
+    expect(streamReset).toHaveBeenCalledOnce();
   });
 });

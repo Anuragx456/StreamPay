@@ -104,13 +104,38 @@ export async function getKitAddress(): Promise<string | null> {
   }
 }
 
+/**
+ * Result of a wallet disconnect attempt.
+ *
+ * - `confirmed: true`  — provider session was cleanly torn down.
+ * - `confirmed: false` — the app session is cleared but the provider session
+ *   could not be confirmed as disconnected (e.g. no active session or an
+ *   unexpected error).
+ */
+export interface DisconnectResult {
+  confirmed: boolean;
+  detail?: string;
+}
+
 /** Tear down the kit's connection (WalletConnect sessions, stored address). */
-export async function disconnectWallet(): Promise<void> {
-  if (!initialized) return;
+export async function disconnectWallet(): Promise<DisconnectResult> {
+  if (!initialized) {
+    lastWalletId = null;
+    return { confirmed: true, detail: 'No wallet kit session was active.' };
+  }
   try {
     await StellarWalletsKit.disconnect();
-  } catch {
-    // Best-effort: some modules have no session to tear down.
+    lastWalletId = null;
+    return { confirmed: true };
+  } catch (err) {
+    // Some modules throw when no session exists — treat that as safe cleanup.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/no .*session|not connected|no wallet/i.test(msg)) {
+      lastWalletId = null;
+      return { confirmed: true, detail: 'No active provider session to disconnect.' };
+    }
+    // Unexpected provider error — keep lastWalletId so the caller knows the
+    // provider might still have state.
+    return { confirmed: false, detail: msg || 'Provider disconnect failed.' };
   }
-  lastWalletId = null;
 }

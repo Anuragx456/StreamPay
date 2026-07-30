@@ -8,6 +8,11 @@ interface ModalProps {
   children: ReactNode;
   /** Optional footer actions row. */
   footer?: ReactNode;
+  /**
+   * When true, Escape key and backdrop click are ignored and the close (X)
+   * button is hidden. Use for async operations that shouldn't be interrupted.
+   */
+  disableClose?: boolean;
 }
 
 /**
@@ -15,11 +20,11 @@ interface ModalProps {
  * (no heavy blur). Closes on Escape and backdrop click; locks body scroll while
  * open. Content animates in via `animate-fade-in`.
  */
-export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, disableClose = false }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !disableClose) onClose();
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -27,7 +32,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [open, onClose]);
+  }, [open, onClose, disableClose]);
 
   if (!open) return null;
 
@@ -43,7 +48,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       <button
         type="button"
         aria-label="Close modal"
-        onClick={onClose}
+        onClick={disableClose ? undefined : onClose}
         className="absolute inset-0"
         style={{ background: 'rgba(20, 18, 14, 0.55)' }}
       />
@@ -51,14 +56,16 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       <div className="card relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto p-5 animate-fade-in">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-normal text-ink">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="grid h-11 w-11 place-items-center rounded-sm text-muted transition-colors hover:bg-surface2 hover:text-ink"
-          >
-            <IconClose className="h-4 w-4" />
-          </button>
+          {!disableClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="grid h-11 w-11 place-items-center rounded-sm text-muted transition-colors hover:bg-surface2 hover:text-ink"
+            >
+              <IconClose className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <div className="text-sm text-muted">{children}</div>
         {footer && <div className="mt-5 flex justify-end gap-2">{footer}</div>}

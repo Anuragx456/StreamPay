@@ -1,23 +1,44 @@
+import { useState } from 'react';
 import { useWalletStore } from '@/store/wallet';
 import { truncateKey, formatAmount } from '@/lib/format';
 import { ThemeToggle } from './ThemeToggle';
 import { IconMenu, IconWallet } from './icons';
+import { Modal } from './Modal';
 
 interface TopbarProps {
   onOpenMenu: () => void;
 }
 
 /**
- * Top bar with the mobile menu button, theme toggle, and wallet control.
+ * Top bar with the mobile menu button, theme toggle, wallet control, and
+ * a disconnect confirmation modal.
+ *
  * Connect opens the stellar-wallets-kit selector modal (Freighter / Lobstr);
- * once connected we show the truncated key, live XLM balance, and disconnect.
+ * once connected we show the truncated key, live XLM balance, and a disconnect
+ * button that opens a confirmation dialog.
  *
  * Wallet session restoration is handled by AppShell in App.tsx so that
  * startEventSync() always runs against the correct mode.
  */
 export function Topbar({ onOpenMenu }: TopbarProps) {
-  const { publicKey, walletId, connecting, balance, balanceLoading, funded, connect, disconnect } =
-    useWalletStore();
+  const {
+    publicKey,
+    walletId,
+    connecting,
+    disconnecting,
+    balance,
+    balanceLoading,
+    funded,
+    connect,
+    disconnect,
+  } = useWalletStore();
+
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleDisconnect = async () => {
+    await disconnect();
+    setShowConfirm(false);
+  };
 
   return (
     <header
@@ -58,7 +79,11 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
               <span className="text-faint">unfunded</span>
             )}
           </span>
-          <button type="button" onClick={() => void disconnect()} className="btn-ghost">
+          <button
+            type="button"
+            onClick={() => setShowConfirm(true)}
+            className="btn-ghost"
+          >
             Disconnect
           </button>
         </div>
@@ -73,6 +98,51 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
           {connecting ? 'Connecting…' : 'Connect Wallet (Freighter)'}
         </button>
       )}
+
+      {/* Disconnect confirmation modal */}
+      <Modal
+        open={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        disableClose={disconnecting}
+        title="Disconnect wallet?"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={disconnecting}
+              onClick={() => setShowConfirm(false)}
+            >
+              Keep connected
+            </button>
+            <button
+              type="button"
+              className="btn-danger"
+              disabled={disconnecting}
+              onClick={() => void handleDisconnect()}
+            >
+              {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p>
+            Connected as{' '}
+            <span className="font-mono text-ink">
+              {publicKey ? truncateKey(publicKey) : ''}
+            </span>
+            {walletId && (
+              <span className="text-faint"> · {walletId === 'freighter' ? 'Freighter' : walletId}</span>
+            )}
+            .
+          </p>
+          <p className="text-faint">
+            This only ends the app session. Your XLM balance, active streams, and
+            funds on Stellar are unaffected. You can reconnect at any time.
+          </p>
+        </div>
+      </Modal>
     </header>
   );
 }

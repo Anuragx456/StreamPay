@@ -15,6 +15,7 @@ import {
   disconnectWallet,
   selectWallet,
   getKitAddress,
+  type DisconnectResult,
 } from '../lib/walletKit';
 import { fetchXlmBalance } from '../lib/stellar';
 import { useMockModeStore } from './mockMode';
@@ -32,6 +33,9 @@ interface WalletState {
   publicKey: string | null;
   walletId: WalletId | null;
   connecting: boolean;
+
+  /** True while a disconnect is being processed — prevents duplicate calls. */
+  disconnecting: boolean;
 
   /** Native XLM balance of the connected account (whole XLM). */
   balance: number | null;
@@ -60,6 +64,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   publicKey: isDemoMode ? 'GB2Y4P4QW5X6E7R2T3Y4U5I6O7P2A3S4D5F6G7H2J3K4L5M6N7O2P3Q4' : null,
   walletId: isDemoMode ? 'freighter' : null,
   connecting: false,
+  disconnecting: false,
   balance: isDemoMode ? 10000.0 : null,
   funded: isDemoMode ? true : false,
   balanceLoading: false,
@@ -96,17 +101,45 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   disconnect: async () => {
-    await disconnectWallet();
-    localStorage.removeItem(STORAGE_KEY);
-    set({ publicKey: null, walletId: null, balance: null, funded: false });
-    // Return to mock mode so the app stays explorable without a wallet.
-    // This is an intentional product decision for a demo-oriented app:
-    // on disconnect the user sees seed data rather than a blank slate,
-    // making it immediately obvious what the UI looks like when populated.
-    // A production-only app would show an empty "connect a wallet" state.
-    useMockModeStore.getState().setIsMock(true);
-    clearClientCache();
-    useStreamsStore.getState().reset();
+    // Guard: ignore duplicate calls while one is in flight.
+    if (get().disconnecting) return;
+    set({ disconnecting: true });
+
+    const priorAddress = get().publicKey;
+
+    try {
+      const result: DisconnectResult = await disconnectWallet();
+
+      // --- local app session is always cleared, regardless of outcome ---
+      localStorage.removeItem(STORAGE_KEY);
+      set({ publicKey: null, walletId: null, balance: null, funded: false });
+      useMockModeStore.getState().setIsMock(true);
+      clearClientCache();
+      useStreamsStore.getState().reset();
+
+      if (result.confirmed) {
+        toast.success('Wallet disconnected', priorAddress ?? '');
+      } else {
+        toast.info(
+          'Disconnected from StreamPay',
+          'Wallet provider session may still be active.',
+        );
+      }
+    } catch (err) {
+      // Unexpected error — clear local state to keep the app safe.
+      localStorage.removeItem(STORAGE_KEY);
+      set({ publicKey: null, walletId: null, balance: null, funded: false });
+      useMockModeStore.getState().setIsMock(true);
+      clearClientCache();
+      useStreamsStore.getState().reset();
+
+      toast.info(
+        'Disconnected from StreamPay',
+        errorMessage(err),
+      );
+    } finally {
+      set({ disconnecting: false });
+    }
   },
 
   refreshBalance: async () => {
