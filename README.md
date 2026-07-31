@@ -57,6 +57,9 @@
 ![Wallet Disconnect](screenshots/wallet_connected.png)
 *Disconnecting the wallet to return to the mock/demo mode.*
 
+![Mobile Responsive](screenshots/mobile-responsive.png)
+*Mobile-responsive UI — sidebar collapses to a hamburger drawer, grids stack vertically, and typography scales fluidly.*
+
 ---
 
 ## Demo Video
