@@ -88,16 +88,20 @@ Three automated workflows:
 *82 passing tests: 71 Vitest (frontend + watcher) and 11 Cargo tests (Soroban contract).*
 
 ```
- ✓ apps/web/src/lib/mockClient.test.ts (20 tests)
- ✓ apps/web/src/lib/sorobanClient.test.ts (10 tests)
- ✓ apps/web/src/store/wallet.test.ts (9 tests)
- ✓ apps/web/src/store/streams.test.ts (7 tests)
- ✓ apps/web/src/lib/stellar.test.ts (6 tests)
- ✓ apps/web/src/lib/errors.test.ts (11 cases)
- ✓ apps/watcher/src/index.test.ts (8 tests)
+ ✓ src/lib/errors.test.ts (11 tests)
+ ✓ src/lib/mockClient.test.ts (20 tests)
+ ✓ src/store/streams.test.ts (7 tests)
+ ✓ src/store/wallet.test.ts (9 tests)
+ ✓ src/lib/stellar.test.ts (6 tests)
+ ✓ src/lib/sorobanClient.test.ts (10 tests)
 
- Test Files  7 passed (7)
-      Tests  71 passed (71)
+ Test Files  6 passed (6)
+      Tests  63 passed (63)
+
+ ✓ src/index.test.ts (8 tests)
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
 ```
 
 ---
