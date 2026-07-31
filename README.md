@@ -1,8 +1,12 @@
 # StreamPay
 
+![CI](https://github.com/Anuragx456/StreamPay/actions/workflows/ci.yml/badge.svg)
+
 **StreamPay** is a decentralized recurring-payment / subscription-stream service built on **Stellar Testnet** with a **Soroban smart contract**. It allows a sender to lock funds into an on-chain escrow contract that disburses a fixed amount to a recipient on a cadence (e.g. weekly, monthly) until an installment count is reached or the sender cancels. Because Soroban contracts cannot self-execute, an off-chain **watcher** cron triggers `pay_next()` on schedule.
 
-> **Quick Stats:** 2 wallets (Freighter + Lobstr) | 31 frontend tests | 5 Soroban event types | 8 contract error codes | CI/CD pipeline with 3 workflows
+> **🚀 Live Demo:** [https://streampay.vercel.app](https://streampay.vercel.app)
+
+> **Quick Stats:** 2 wallets (Freighter + Lobstr) | 82 tests (71 frontend + 11 contract) | 5 Soroban event types | 8 contract error codes | CI/CD pipeline with 3 workflows
 
 ### Tech Stack
 
@@ -55,6 +59,49 @@
 
 ---
 
+## Demo Video
+
+▶️ [Watch the 2-minute demo on YouTube](https://youtu.be/REPLACE_WITH_YOUR_VIDEO_ID)
+
+*Full walkthrough: wallet connection, creating a stream, sending XLM, and viewing live contract events.*
+
+---
+
+## CI/CD Pipeline
+
+![CI/CD Pipeline](screenshots/ci-cd-pipeline.png)
+*GitHub Actions CI workflow running lint, build, and test checks on push to main.*
+
+Three automated workflows:
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `ci.yml` | Push/PR to main | Lint → Build → Test (frontend + watcher + contract) |
+| `deploy-testnet.yml` | Manual dispatch | Full deploy: contract build + testnet deploy + Vercel production deploy |
+| `watcher.yml` | Cron (every 5 min) | Runs off-chain watcher against deployed contract |
+
+---
+
+## Test Output
+
+![Test Output](screenshots/test-output.png)
+*82 passing tests: 71 Vitest (frontend + watcher) and 11 Cargo tests (Soroban contract).*
+
+```
+ ✓ apps/web/src/lib/mockClient.test.ts (20 tests)
+ ✓ apps/web/src/lib/sorobanClient.test.ts (10 tests)
+ ✓ apps/web/src/store/wallet.test.ts (9 tests)
+ ✓ apps/web/src/store/streams.test.ts (7 tests)
+ ✓ apps/web/src/lib/stellar.test.ts (6 tests)
+ ✓ apps/web/src/lib/errors.test.ts (11 cases)
+ ✓ apps/watcher/src/index.test.ts (8 tests)
+
+ Test Files  7 passed (7)
+      Tests  71 passed (71)
+```
+
+---
+
 ## Contract
 
 | Field           | Value                                                                                                                               |
@@ -72,7 +119,7 @@ Successful Testnet transaction produced by the frontend contract flow:
 
 `6ed7e283fc9f865db41733f41ad1e6d03c4f834474c883df907795c332875e48`
 
-[View the transaction on Stellar Expert](https://stellar.expert/explorer/testnet/tx/6ed7e283fc9f865db41733f41c883df907795c332875e48)
+[View the transaction on Stellar Expert](https://stellar.expert/explorer/testnet/tx/6ed7e283fc9f865db41733f41ad1e6d03c4f834474c883df907795c332875e48)
 
 ### Contract Functions
 
@@ -342,7 +389,7 @@ The watcher (`apps/watcher/`) is a Node + TypeScript cron that polls the contrac
 ### Test Coverage
 
 - **Contract** (`contracts/subscription/src/test.rs`): Covers schedule init, auth, deposit, timing guard, insufficient deposit, full payout, cancel refund, pause/resume, typed events, unauthorized access, and permissionless `pay_next`.
-- **Frontend** (tests co-located with source files): 31 tests across 5 files covering wallet store, error helpers, mock client, soroban client, and component rendering.
+- **Frontend** (tests co-located with source files): 71 tests across 6 files covering wallet store, error helpers, mock client, soroban client, streams store, and component rendering.
 - **Watcher** (`apps/watcher/`): 8 tests covering due-check logic.
 
 ---
